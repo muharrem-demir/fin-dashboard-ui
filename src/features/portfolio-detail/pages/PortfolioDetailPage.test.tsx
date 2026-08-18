@@ -44,6 +44,14 @@ async function openSocket(): Promise<FakeWebSocket> {
   return socket;
 }
 
+/** The tickers the table is showing, in the order the rows appear. */
+function visibleTickers(): readonly string[] {
+  return screen
+    .getAllByRole('rowheader')
+    .map((cell) => cell.textContent ?? '')
+    .filter((text) => text !== '');
+}
+
 describe('PortfolioDetailPage', () => {
   let restoreWebSocket: () => void;
 
@@ -153,6 +161,144 @@ describe('PortfolioDetailPage', () => {
     });
   });
 
+  describe('sorting the holdings', () => {
+    beforeEach(() => {
+      mockedPortfolios.getPortfolio.mockResolvedValue(
+        aPortfolio({
+          id: 'p1',
+          stocks: [
+            aStock({ ticker: 'MSFT', shares: 20 }),
+            aStock({ ticker: 'AAPL', shares: 15 }),
+            aStock({ ticker: 'ZM', shares: 2 }),
+          ],
+        }),
+      );
+      // shares 20/15/2, price 100/200/300 — so no two columns agree on an order.
+      mockedQuotes.listQuotes.mockResolvedValue(
+        aQuotesResponse({
+          quotes: [
+            aQuote({ ticker: 'MSFT', price: 100, percentChange: 2.5 }),
+            aQuote({ ticker: 'AAPL', price: 200, percentChange: -1 }),
+            aQuote({ ticker: 'ZM', price: 300, percentChange: 0.5 }),
+          ],
+        }),
+      );
+    });
+
+    function header(name: RegExp): HTMLElement {
+      return screen.getByRole('button', { name });
+    }
+
+    /** Waits for the prices to land, so a sort by a priced column is not racing the batch request. */
+    async function pricedRows(): Promise<void> {
+      await screen.findByText('$100.00');
+    }
+
+    it('lists the stocks by ticker ascending before anything is clicked', async () => {
+      renderPage();
+
+      expect(await screen.findByRole('row', { name: /AAPL/ })).toBeInTheDocument();
+      expect(visibleTickers()).toEqual(['AAPL', 'MSFT', 'ZM']);
+      expect(screen.getByRole('columnheader', { name: /ticker/i })).toHaveAttribute('aria-sort', 'ascending');
+    });
+
+    it('reverses the tickers when the ticker header is clicked', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await pricedRows();
+
+      await user.click(header(/ticker/i));
+
+      expect(visibleTickers()).toEqual(['ZM', 'MSFT', 'AAPL']);
+      expect(screen.getByRole('columnheader', { name: /ticker/i })).toHaveAttribute('aria-sort', 'descending');
+    });
+
+    it.each([
+      ['shares', /shares/i, ['MSFT', 'AAPL', 'ZM'], ['ZM', 'AAPL', 'MSFT']],
+      ['price', /price/i, ['ZM', 'AAPL', 'MSFT'], ['MSFT', 'AAPL', 'ZM']],
+      ['change', /change/i, ['MSFT', 'ZM', 'AAPL'], ['AAPL', 'ZM', 'MSFT']],
+      // value: AAPL 15×200 = 3000, MSFT 20×100 = 2000, ZM 2×300 = 600
+      ['total value', /total value/i, ['AAPL', 'MSFT', 'ZM'], ['ZM', 'MSFT', 'AAPL']],
+    ])('sorts by %s, descending first and ascending on the second click', async (_name, name, first, second) => {
+      const user = userEvent.setup();
+      renderPage();
+      await pricedRows();
+
+      await user.click(header(name));
+      expect(visibleTickers()).toEqual(first);
+
+      await user.click(header(name));
+      expect(visibleTickers()).toEqual(second);
+    });
+
+    it('marks only the active column as sorted', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await pricedRows();
+
+      await user.click(header(/total value/i));
+
+      expect(screen.getByRole('columnheader', { name: /total value/i })).toHaveAttribute('aria-sort', 'descending');
+      for (const name of [/ticker/i, /shares/i, /^price$/i, /change/i]) {
+        expect(screen.getByRole('columnheader', { name })).toHaveAttribute('aria-sort', 'none');
+      }
+    });
+
+    it('sorts a position with no price last, in both directions, rather than as if it were worthless', async () => {
+      const user = userEvent.setup();
+      mockedQuotes.listQuotes.mockResolvedValue(
+        aQuotesResponse({
+          quotes: [aQuote({ ticker: 'MSFT', price: 100 }), aQuote({ ticker: 'AAPL', price: 200 })],
+          unresolved: ['ZM'],
+        }),
+      );
+
+      renderPage();
+      await pricedRows();
+
+      await user.click(header(/total value/i));
+      expect(visibleTickers().at(-1)).toBe('ZM');
+
+      await user.click(header(/total value/i));
+      expect(visibleTickers().at(-1)).toBe('ZM');
+    });
+
+    it('keeps the chosen order when a tick changes a price', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      const socket = await openSocket();
+      await pricedRows();
+      await user.click(header(/^price$/i));
+      expect(visibleTickers()).toEqual(['ZM', 'AAPL', 'MSFT']);
+
+      // MSFT overtakes both: the row moves to the top rather than the sort being forgotten.
+      await act(async () => {
+        socket.emit({
+          type: 'quotes',
+          timestamp: '2026-08-18T09:14:05.000Z',
+          quotes: [{ ticker: 'MSFT', price: 500, percentChange: 1 }],
+          unresolved: [],
+          quoteCount: 1,
+        });
+        await Promise.resolve();
+      });
+
+      expect(visibleTickers()).toEqual(['MSFT', 'ZM', 'AAPL']);
+    });
+
+    it('sorts only what the search left visible', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await pricedRows();
+
+      await user.type(await screen.findByRole('searchbox', { name: /filter by ticker/i }), 'M');
+      await user.click(header(/shares/i));
+
+      expect(visibleTickers()).toEqual(['MSFT', 'ZM']);
+    });
+  });
+
   describe('filtering the holdings', () => {
     beforeEach(() => {
       mockedPortfolios.getPortfolio.mockResolvedValue(
@@ -167,14 +313,6 @@ describe('PortfolioDetailPage', () => {
       );
       mockedQuotes.listQuotes.mockResolvedValue(aQuotesResponse({ quotes: [] }));
     });
-
-    /** The rows the table is currently showing, in order. */
-    function visibleTickers(): readonly string[] {
-      return screen
-        .getAllByRole('rowheader')
-        .map((cell) => cell.textContent ?? '')
-        .filter((text) => text !== '');
-    }
 
     async function search(): Promise<HTMLElement> {
       return screen.findByRole('searchbox', { name: /filter by ticker/i });
@@ -233,7 +371,7 @@ describe('PortfolioDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /clear search/i }));
 
       expect(field).toHaveValue('');
-      expect(visibleTickers()).toEqual(['AAPL', 'MSFT', 'AMZN']);
+      expect(visibleTickers()).toEqual(['AAPL', 'AMZN', 'MSFT']);
       // Focus comes back so the next search can just be typed.
       expect(field).toHaveFocus();
     });
