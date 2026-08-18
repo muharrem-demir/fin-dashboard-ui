@@ -64,8 +64,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={isDisabled}
       aria-busy={loading || undefined}
       className={cn(
-        'inline-flex shrink-0 select-none items-center justify-center rounded-lg font-medium transition-colors duration-150',
+        'inline-flex shrink-0 cursor-pointer select-none items-center justify-center rounded-lg font-medium transition-colors duration-150',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
+        // Tailwind v4's preflight gives buttons `cursor: default`, so the pointer has to be asked for.
+        // It lives here rather than at the call sites so no screen can ship a button that feels inert.
+        // `pointer-events-none` while disabled means the cursor reverts on its own when it should.
         'disabled:pointer-events-none disabled:opacity-55',
         VARIANTS[variant],
         SIZES[size],

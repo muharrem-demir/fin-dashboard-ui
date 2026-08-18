@@ -31,8 +31,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       aria-busy={loading || undefined}
       disabled={disabled === true || loading}
       className={cn(
-        'inline-flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150',
+        'inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors duration-150',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
+        // See Button: Tailwind v4 preflight makes buttons `cursor: default` unless told otherwise.
         'disabled:pointer-events-none disabled:opacity-55',
         VARIANTS[variant],
         className,
