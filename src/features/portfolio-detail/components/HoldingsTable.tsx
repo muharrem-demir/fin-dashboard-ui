@@ -176,7 +176,9 @@ function SortableHeader({ column, sort, onSort }: SortableHeaderProps): React.JS
           onSort(column.key);
         }}
         className={cn(
-          'inline-flex items-center gap-1 rounded-sm transition-colors hover:text-content-primary',
+          // A raw button rather than the shared primitive, so it asks for the pointer itself — Tailwind
+          // v4's preflight gives every button `cursor: default` until told otherwise.
+          'inline-flex cursor-pointer items-center gap-1 rounded-sm transition-colors hover:text-content-primary',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
           // The label stays flush with its column, so the arrow moves to the outside of a right-aligned one.
           column.align === 'right' && 'flex-row-reverse',
