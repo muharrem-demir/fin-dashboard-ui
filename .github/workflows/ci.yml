@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to the same branch makes the previous run's result irrelevant, so cancel it rather than
+# paying for both.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly the lock file and fails if the two have
+      # drifted, which is the difference between a reproducible build and a coincidence.
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # Each gate is its own step so the summary says which one failed without opening the log.
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build:only
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The image build repeats lint and type-check internally; running it after `verify` means a plain
+    # lint failure is reported in seconds rather than after a full image build.
+    needs: verify
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: fin-dashboard-ui:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Proves the runtime image actually starts: that the entrypoint renders a valid nginx config, that
+      # nginx accepts it, and that the bundle is served. A broken template would otherwise only be found
+      # on deployment.
+      - name: Smoke-test the image
+        run: |
+          docker run -d --name ui -p 8080:8080 -e API_UPSTREAM=http://127.0.0.1:9 fin-dashboard-ui:ci
+
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/healthz > /dev/null; then
+              echo "healthy after ${attempt} attempt(s)"
+              break
+            fi
+            if [ "${attempt}" -eq 20 ]; then
+              echo "container did not become healthy"
+              docker logs ui
+              exit 1
+            fi
+            sleep 1
+          done
+
+          curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
+          curl -fsS http://localhost:8080/config.js | grep -q '__APP_CONFIG__'
+
+          # An unknown path must serve index.html so client-side routing works on a hard refresh.
+          curl -fsS http://localhost:8080/portfolios/some-id | grep -q '<div id="root">'
+
+          docker rm -f ui

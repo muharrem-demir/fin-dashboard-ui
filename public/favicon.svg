@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Fin Dashboard">
+  <!-- A rising line over a rounded tile: legible at 16px, where a candlestick chart is mud. -->
+  <rect width="32" height="32" rx="8" fill="#2563eb" />
+  <path
+    d="M7 21.5 13 15l4.5 4 7-8.5"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="2.75"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="24.5" cy="10.5" r="2.5" fill="#ffffff" />
+</svg>

@@ -1,0 +1,31 @@
+# Base configuration shared by every environment.
+#
+# Environment-specific files (config.<mode>.yaml) are deep-merged on top of this one at build
+# time by vite-plugins/app-config-plugin.ts, and a container may override the result again at
+# runtime through /config.js (see docker/entrypoint.sh). Nothing here is a secret: every value
+# ends up in the browser bundle.
+
+app:
+  name: Fin Dashboard
+  # Shown in the header so it is obvious which environment a tab is pointed at.
+  # An empty label hides the badge entirely.
+  environmentLabel: ""
+
+api:
+  # Relative by design: the dev server and the production nginx image both proxy this prefix to
+  # the Java API, which keeps the browser on a single origin and sidesteps CORS.
+  baseUrl: /api/v1
+  timeoutMs: 15000
+
+websocket:
+  # Relative too. Resolved against the page origin, upgrading http -> ws and https -> wss.
+  url: /ws/quotes
+  reconnect:
+    enabled: true
+    initialDelayMs: 1000
+    maxDelayMs: 15000
+    maxAttempts: 8
+
+logging:
+  # error | warn | info | debug
+  level: info

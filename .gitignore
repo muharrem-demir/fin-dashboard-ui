@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+dist-ssr/
+build/
+*.local
+
+# Test and lint artefacts
+coverage/
+.eslintcache
+*.tsbuildinfo
+
+# Environment overrides. `.env.example` is committed; the real values never are.
+.env
+.env.*
+!.env.example
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local Claude Code settings. `.claude/` itself is committed — the project conventions, agents and
+# skills in it are part of the repository; only per-developer overrides are not.
+.claude/settings.local.json

@@ -1,0 +1,22 @@
+# Everything the build stage does not need. Keeping node_modules out matters most: copying a local
+# install into the image would both bloat the context and risk shipping platform-specific binaries
+# built for the host rather than for Alpine.
+node_modules
+dist
+coverage
+.git
+.github
+.claude
+.vscode
+.idea
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+Dockerfile
+docker-compose*.yml
+README.md
+CLAUDE.md
+.DS_Store
+Thumbs.db

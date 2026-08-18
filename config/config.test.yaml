@@ -1,0 +1,24 @@
+# Values used by the Jest suite. Loaded through src/test/mocks/app-config.ts, which stands in for
+# the `virtual:app-config` module the Vite plugin provides during a real build.
+#
+# Absolute URLs on purpose: jsdom has an origin, but tests read clearer when the host under test is
+# spelled out in the assertion.
+
+app:
+  name: Fin Dashboard
+  environmentLabel: TEST
+
+api:
+  baseUrl: http://api.test/api/v1
+  timeoutMs: 1000
+
+websocket:
+  url: ws://api.test/ws/quotes
+  reconnect:
+    enabled: false
+    initialDelayMs: 10
+    maxDelayMs: 40
+    maxAttempts: 2
+
+logging:
+  level: error

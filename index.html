@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Track stock portfolios with live market prices." />
+    <meta name="theme-color" content="#0f1729" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Fin Dashboard</title>
+
+    <!--
+      Runtime configuration, written by the container entrypoint from environment variables. Loaded
+      before the bundle so `window.__APP_CONFIG__` is already set when app-config.ts reads it, and
+      not a module so a 404 in development is harmless rather than a build error.
+    -->
+    <script src="/config.js"></script>
+
+    <!--
+      Applies the stored theme before first paint. Without this the page renders light, then
+      ThemeProvider's effect flips it — a white flash on every load for dark-mode users. Kept in
+      sync with ThemeProvider's storage key and class name.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('fin-dashboard.theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = stored === 'dark' || ((stored === null || stored === 'system') && prefersDark);
+          document.documentElement.classList.toggle('dark', dark);
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (error) {
+          /* Storage unavailable — the provider's default takes over. */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

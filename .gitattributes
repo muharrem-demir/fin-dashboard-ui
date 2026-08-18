@@ -1,0 +1,16 @@
+# Normalise line endings in the repository to LF.
+#
+# Prettier is configured with `endOfLine: lf` and CI runs `format:check`, so without this a Windows
+# checkout with `core.autocrlf=true` would fail the formatting gate on every file it touched.
+* text=auto eol=lf
+
+# The container entrypoint must keep LF regardless of platform: a shell script with CRLF line endings
+# fails inside Alpine with a confusing "not found" error on the shebang line.
+*.sh text eol=lf
+
+# Binary, so never normalised or diffed as text.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

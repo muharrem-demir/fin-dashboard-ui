@@ -1,0 +1,11 @@
+# Production build (`npm run build`).
+#
+# The nginx image serves the bundle and reverse-proxies /api and /ws to the API container, so the
+# relative URLs stay correct. To point a deployed container at a different API without rebuilding,
+# set APP_API_BASE_URL / APP_WS_URL on the container (see docker/entrypoint.sh).
+
+app:
+  environmentLabel: ""
+
+logging:
+  level: warn
