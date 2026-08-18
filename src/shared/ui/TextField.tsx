@@ -15,6 +15,14 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
    * and carry its own accessible name.
    */
   readonly trailing?: ReactNode;
+  /**
+   * Hides the label visually while leaving it in the accessibility tree.
+   *
+   * For the case where the surrounding UI already says what the field is — a search box inside a table
+   * header, say — and a printed label would only repeat the placeholder. The label is still required and
+   * still `htmlFor`-bound; it is never dropped, because an input with no label has no accessible name.
+   */
+  readonly labelHidden?: boolean;
   readonly containerClassName?: string;
 }
 
@@ -26,7 +34,7 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
  * ids collide the moment two instances exist.
  */
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, hint, error, leading, trailing, className, containerClassName, ...rest },
+  { label, hint, error, leading, trailing, labelHidden = false, className, containerClassName, ...rest },
   ref,
 ) {
   const id = useId();
@@ -36,7 +44,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
 
   return (
     <div className={cn('flex flex-col gap-1.5', containerClassName)}>
-      <label htmlFor={id} className="text-sm font-medium text-content-secondary">
+      <label htmlFor={id} className={cn(labelHidden ? 'sr-only' : 'text-sm font-medium text-content-secondary')}>
         {label}
       </label>
 

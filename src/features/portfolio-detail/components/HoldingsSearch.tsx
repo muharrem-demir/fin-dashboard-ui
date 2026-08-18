@@ -23,6 +23,11 @@ export interface HoldingsSearchProps {
  * paints one in some engines and not others, and it cannot be labelled, so the native one is suppressed
  * and this takes its place. Clearing returns focus to the input, because the user's next move after
  * emptying a search is almost always to type a different one.
+ *
+ * It is deliberately one line tall: a printed label and a line of help text would push the table down on
+ * every visit to pay for wording the placeholder and the magnifier already carry. Neither is deleted
+ * though — the label is only hidden visually, and the match count still announces to a screen reader from
+ * a live region that occupies no space.
  */
 export function HoldingsSearch({ value, onChange, matchCount, totalCount }: HoldingsSearchProps): React.JSX.Element {
   const input = useRef<HTMLInputElement>(null);
@@ -39,7 +44,8 @@ export function HoldingsSearch({ value, onChange, matchCount, totalCount }: Hold
         ref={input}
         type="search"
         label="Filter by ticker"
-        placeholder="Search holdings"
+        labelHidden
+        placeholder="Search tickers"
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
@@ -58,16 +64,16 @@ export function HoldingsSearch({ value, onChange, matchCount, totalCount }: Hold
         trailing={
           value !== '' ? <IconButton label="Clear search" icon={<X className="size-4" />} onClick={clear} /> : undefined
         }
-        hint={
-          <span role="status">
-            {searching
-              ? `${String(matchCount)} of ${String(totalCount)} ${totalCount === 1 ? 'holding' : 'holdings'} shown`
-              : 'Rows whose ticker contains what you type stay visible.'}
-          </span>
-        }
         className="[&::-webkit-search-cancel-button]:appearance-none"
         containerClassName="max-w-sm"
       />
+
+      {/* Sighted users watch the rows disappear; this is how the same fact reaches someone who cannot. */}
+      <span role="status" className="sr-only">
+        {searching
+          ? `${String(matchCount)} of ${String(totalCount)} ${totalCount === 1 ? 'holding' : 'holdings'} shown`
+          : ''}
+      </span>
     </div>
   );
 }
