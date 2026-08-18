@@ -15,7 +15,7 @@
 #
 set -eu
 
-SERVER_PORT="${SERVER_PORT:-8080}"
+SERVER_PORT="${SERVER_PORT:-9000}"
 
 HTML_DIR=/usr/share/nginx/html
 CONFIG_JS="${HTML_DIR}/config.js"

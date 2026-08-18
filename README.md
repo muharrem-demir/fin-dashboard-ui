@@ -13,21 +13,19 @@ No authentication — the API is open by design, so the UI has no login.
 
 Application can be run using NPM or Docker Compose. Running directives are listed below.
 
-### Run using Docker Compose:
+#### Run using Docker Compose:
 
 ```bash
-docker compose up -d --build   # http://localhost:3000
+docker compose up -d --build
 ```
 
-**In your browser go to <http://localhost:3000>.**
-
-### Run using NPM:
+#### Run using NPM:
 
 ```bash
 npm run dev
 ```
 
-**In your browser go to <http://localhost:5173>.**
+**After running the application, view it on <http://localhost:9000>.**
 
 Nothing is proxied — the browser calls the API directly at
 `http://localhost:8080/api/v1` and opens its WebSocket to `ws://localhost:8080/ws/quotes`. That makes
@@ -39,7 +37,7 @@ every request cross-origin, so **the backend has to allow this origin**; see
 
 | Command                 | What it does                                                   |
 | ----------------------- | -------------------------------------------------------------- |
-| `npm run dev`           | Dev server on :5173                                            |
+| `npm run dev`           | Dev server on :9000                                            |
 | `npm run verify`        | lint + typecheck + test + build. The one to run before pushing |
 | `npm run lint`          | ESLint, `--max-warnings=0`                                     |
 | `npm run typecheck`     | `tsc --build` across both project references                   |
@@ -182,7 +180,7 @@ class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:5173", "http://localhost:3000")
+                .allowedOrigins("http://localhost:9000", "http://localhost:9000")
                 .allowedMethods("GET", "POST", "PATCH", "DELETE");
     }
 }
@@ -229,14 +227,14 @@ source — just static files, running as a non-root user.
 
 ```bash
 docker build -t fin-dashboard-ui .
-docker run -p 3000:8080   -e APP_API_BASE_URL=http://localhost:8080/api/v1   -e APP_WS_URL=ws://localhost:8080/ws/quotes   fin-dashboard-ui
+docker run -p 9000:9000   -e APP_API_BASE_URL=http://localhost:8080/api/v1   -e APP_WS_URL=ws://localhost:8080/ws/quotes   fin-dashboard-ui
 ```
 
 | Variable                | Default | Meaning                                            |
 | ----------------------- | ------- | -------------------------------------------------- |
 | `APP_API_BASE_URL`      | —       | Where the browser sends API calls; also drives CSP |
 | `APP_WS_URL`            | —       | Where the browser opens the quote feed; also CSP   |
-| `SERVER_PORT`           | `8080`  | Port nginx listens on                              |
+| `SERVER_PORT`           | `9000`  | Port nginx listens on                              |
 | `APP_ENVIRONMENT_LABEL` | —       | Badge in the header                                |
 | `APP_LOG_LEVEL`         | —       | `error` \| `warn` \| `info` \| `debug`             |
 

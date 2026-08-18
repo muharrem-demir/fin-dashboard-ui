@@ -56,10 +56,10 @@ RUN mkdir -p /var/cache/nginx /tmp/nginx \
 
 # No API_UPSTREAM: this image proxies nothing. Where the API lives is a *browser*-side concern, set
 # through APP_API_BASE_URL / APP_WS_URL at container start.
-ENV SERVER_PORT=8080
+ENV SERVER_PORT=9000
 
 USER nginx
-EXPOSE 8080
+EXPOSE 9000
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --quiet --tries=1 --spider "http://127.0.0.1:${SERVER_PORT}/healthz" || exit 1

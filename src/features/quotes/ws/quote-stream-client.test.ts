@@ -300,9 +300,9 @@ describe('QuoteStreamClient', () => {
 
 describe('resolveSocketUrl', () => {
   it.each([
-    ['/ws/quotes', 'http://localhost:5173', 'ws://localhost:5173/ws/quotes'],
+    ['/ws/quotes', 'http://localhost:9000', 'ws://localhost:8080/ws/quotes'],
     ['/ws/quotes', 'https://dashboard.example.com', 'wss://dashboard.example.com/ws/quotes'],
-    ['ws/quotes', 'http://localhost:5173', 'ws://localhost:5173/ws/quotes'],
+    ['ws/quotes', 'http://localhost:9000', 'ws://localhost:8080/ws/quotes'],
     // Already absolute: passed through, and http upgraded to ws.
     ['ws://api.test/ws/quotes', 'https://ignored.example', 'ws://api.test/ws/quotes'],
     ['wss://api.test/ws/quotes', 'http://ignored.example', 'wss://api.test/ws/quotes'],

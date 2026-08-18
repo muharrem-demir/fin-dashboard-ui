@@ -12,7 +12,7 @@ There is no authentication. Every endpoint is open by design.
 ## Commands
 
 ```bash
-npm run dev            # Vite dev server on :5173 (serves the app only; nothing is proxied)
+npm run dev            # Vite dev server on :9000 (serves the app only; nothing is proxied)
 npm run verify         # lint + typecheck + test + build — run this before saying you are done
 npm run lint           # ESLint, --max-warnings=0
 npm run lint:fix

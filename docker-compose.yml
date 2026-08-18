@@ -21,7 +21,7 @@ services:
         BUILD_MODE: ${BUILD_MODE:-production}
     container_name: fin-dashboard-ui
     environment:
-      SERVER_PORT: 8080
+      SERVER_PORT: 9000
       # Where the browser should send API and WebSocket traffic. These also drive the
       # Content-Security-Policy `connect-src` that the entrypoint renders into the nginx config.
       APP_API_BASE_URL: ${APP_API_BASE_URL:-http://localhost:8080/api/v1}
@@ -29,5 +29,5 @@ services:
       APP_ENVIRONMENT_LABEL: ${APP_ENVIRONMENT_LABEL:-DOCKER}
       APP_LOG_LEVEL: ${APP_LOG_LEVEL:-warn}
     ports:
-      - "${UI_PORT:-3000}:8080"
+      - "${UI_PORT:-9000}:9000"
     restart: unless-stopped

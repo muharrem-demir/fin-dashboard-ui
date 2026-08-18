@@ -2,7 +2,7 @@
 #
 # The dev server serves only the app; it proxies nothing. The browser talks straight to the Java API
 # at the absolute URLs inherited from config.default.yaml, so the backend must allow this origin
-# (http://localhost:5173) in its CORS configuration.
+# (http://localhost:9000) in its CORS configuration.
 #
 # To point at a backend somewhere other than localhost:8080, set APP_API_BASE_URL and APP_WS_URL
 # before `npm run dev` — see .env.example.

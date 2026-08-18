@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
     plugins: [appConfigPlugin(), react(), tailwindcss()],
 
     server: {
-      port: Number(env.PORT ?? 5173),
+      port: Number(env.PORT ?? 9000),
       // Fail loudly rather than silently moving to 5174: the port is part of this app's origin, and
       // the backend's CORS allow-list names that origin exactly.
       strictPort: true,

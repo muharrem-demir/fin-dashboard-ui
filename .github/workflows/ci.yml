@@ -95,13 +95,13 @@ jobs:
       # on deployment.
       - name: Smoke-test the image
         run: |
-          docker run -d --name ui -p 8080:8080 \
+          docker run -d --name ui -p 9000:9000 \
             -e APP_API_BASE_URL=https://api.example.test/api/v1 \
             -e APP_WS_URL=wss://api.example.test/ws/quotes \
             fin-dashboard-ui:ci
 
           for attempt in $(seq 1 20); do
-            if curl -fsS http://localhost:8080/healthz > /dev/null; then
+            if curl -fsS http://localhost:9000/healthz > /dev/null; then
               echo "healthy after ${attempt} attempt(s)"
               break
             fi
@@ -113,16 +113,16 @@ jobs:
             sleep 1
           done
 
-          curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
-          curl -fsS http://localhost:8080/config.js | grep -q '__APP_CONFIG__'
+          curl -fsS http://localhost:9000/ | grep -q '<div id="root">'
+          curl -fsS http://localhost:9000/config.js | grep -q '__APP_CONFIG__'
           # The runtime config must carry the API URL the container was given, since nothing proxies.
-          curl -fsS http://localhost:8080/config.js | grep -q 'https://api.example.test/api/v1'
+          curl -fsS http://localhost:9000/config.js | grep -q 'https://api.example.test/api/v1'
 
           # And the CSP must name those origins, or the browser blocks the calls before CORS applies.
-          curl -fsSI http://localhost:8080/ | grep -i 'content-security-policy' \
+          curl -fsSI http://localhost:9000/ | grep -i 'content-security-policy' \
             | grep -q "connect-src .*https://api.example.test"
 
           # An unknown path must serve index.html so client-side routing works on a hard refresh.
-          curl -fsS http://localhost:8080/portfolios/some-id | grep -q '<div id="root">'
+          curl -fsS http://localhost:9000/portfolios/some-id | grep -q '<div id="root">'
 
           docker rm -f ui
