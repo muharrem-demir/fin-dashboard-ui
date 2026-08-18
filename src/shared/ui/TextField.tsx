@@ -8,6 +8,13 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   readonly hint?: ReactNode;
   readonly error?: string;
   readonly leading?: ReactNode;
+  /**
+   * A control rendered inside the right edge of the field — a clear button, say.
+   *
+   * Unlike {@link leading} this stays interactive, so anything put here must be reachable by keyboard
+   * and carry its own accessible name.
+   */
+  readonly trailing?: ReactNode;
   readonly containerClassName?: string;
 }
 
@@ -19,7 +26,7 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
  * ids collide the moment two instances exist.
  */
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, hint, error, leading, className, containerClassName, ...rest },
+  { label, hint, error, leading, trailing, className, containerClassName, ...rest },
   ref,
 ) {
   const id = useId();
@@ -52,10 +59,13 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
             'disabled:cursor-not-allowed disabled:opacity-60',
             hasError ? 'border-loss-500' : 'border-border-strong hover:border-brand-400',
             leading !== undefined && 'pl-9',
+            trailing !== undefined && 'pr-11',
             className,
           )}
           {...rest}
         />
+
+        {trailing !== undefined && <span className="absolute top-1/2 right-1 -translate-y-1/2">{trailing}</span>}
       </div>
 
       {hasError ? (

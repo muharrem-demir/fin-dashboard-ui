@@ -7,7 +7,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '../../../shared/ui/Card';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { EmptyState } from '../../../shared/ui/EmptyState';
 import { ErrorState } from '../../../shared/ui/ErrorState';
-import { ArrowLeft, EmptyInboxIcon, MarketIcon, Pencil, RefreshCw } from '../../../shared/ui/icons';
+import { ArrowLeft, EmptyInboxIcon, MarketIcon, Pencil, RefreshCw, Search } from '../../../shared/ui/icons';
 import { HoldingsTableSkeleton, Skeleton } from '../../../shared/ui/Skeleton';
 import { useToast } from '../../../shared/ui/toast/useToast';
 import { formatCurrency } from '../../../shared/lib/format';
@@ -15,11 +15,13 @@ import { MAX_TICKERS_PER_REQUEST } from '../../quotes/api/quote-schemas';
 import { useAddStock, usePortfolio, useRemoveStock, useRenamePortfolio } from '../../portfolios/api/portfolio-queries';
 import { AddStockForm } from '../components/AddStockForm';
 import { ConnectionBadge } from '../components/ConnectionBadge';
+import { HoldingsSearch } from '../components/HoldingsSearch';
 import { HoldingsTable } from '../components/HoldingsTable';
 import { PortfolioStats } from '../components/PortfolioStats';
 import { RemoveStockForm } from '../components/RemoveStockForm';
 import { RenamePortfolioDialog } from '../components/RenamePortfolioDialog';
 import { useLiveHoldings } from '../hooks/useLiveHoldings';
+import { filterHoldings } from '../lib/filter-holdings';
 
 /**
  * A portfolio's holdings, priced live.
@@ -40,11 +42,19 @@ export function PortfolioDetailPage(): React.JSX.Element {
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const stocks = portfolio.data?.stocks;
   const live = useLiveHoldings(stocks);
 
   const heldTickers = live.holdings.map((holding) => holding.ticker);
+
+  /**
+   * The filter is a view over the holdings, never a replacement for them: the subscription, the batch
+   * request and the totals above the table all keep reading `live.holdings`, so searching hides rows
+   * without unsubscribing a symbol or making the portfolio look smaller than it is.
+   */
+  const visibleHoldings = filterHoldings(live.holdings, search);
   const atSubscriptionCap = heldTickers.length >= MAX_TICKERS_PER_REQUEST;
 
   const add = useCallback(
@@ -223,11 +233,37 @@ export function PortfolioDetailPage(): React.JSX.Element {
                   </div>
                 )}
 
-                <HoldingsTable
-                  holdings={live.holdings}
-                  onRemove={setPendingRemoval}
-                  removingTicker={removeStock.isPending ? removeStock.variables : null}
+                <HoldingsSearch
+                  value={search}
+                  onChange={setSearch}
+                  matchCount={visibleHoldings.length}
+                  totalCount={live.holdings.length}
                 />
+
+                {visibleHoldings.length === 0 ? (
+                  <EmptyState
+                    icon={<Search className="size-7" />}
+                    title="No matching stocks"
+                    description={`No ticker in this portfolio contains "${search.trim()}". Clear the search to see all ${String(live.holdings.length)} holdings.`}
+                    action={
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setSearch('');
+                        }}
+                      >
+                        Clear search
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <HoldingsTable
+                    holdings={visibleHoldings}
+                    onRemove={setPendingRemoval}
+                    removingTicker={removeStock.isPending ? removeStock.variables : null}
+                  />
+                )}
               </>
             )}
           </>

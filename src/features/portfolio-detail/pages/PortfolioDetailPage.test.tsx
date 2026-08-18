@@ -153,6 +153,126 @@ describe('PortfolioDetailPage', () => {
     });
   });
 
+  describe('filtering the holdings', () => {
+    beforeEach(() => {
+      mockedPortfolios.getPortfolio.mockResolvedValue(
+        aPortfolio({
+          id: 'p1',
+          stocks: [
+            aStock({ ticker: 'AAPL', shares: 15 }),
+            aStock({ ticker: 'MSFT', shares: 20 }),
+            aStock({ ticker: 'AMZN', shares: 5 }),
+          ],
+        }),
+      );
+      mockedQuotes.listQuotes.mockResolvedValue(aQuotesResponse({ quotes: [] }));
+    });
+
+    /** The rows the table is currently showing, in order. */
+    function visibleTickers(): readonly string[] {
+      return screen
+        .getAllByRole('rowheader')
+        .map((cell) => cell.textContent ?? '')
+        .filter((text) => text !== '');
+    }
+
+    async function search(): Promise<HTMLElement> {
+      return screen.findByRole('searchbox', { name: /filter by ticker/i });
+    }
+
+    it('hides every row whose ticker does not contain what was typed', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.type(await search(), 'MS');
+
+      expect(visibleTickers()).toEqual(['MSFT']);
+      expect(screen.queryByRole('row', { name: /AAPL/ })).not.toBeInTheDocument();
+    });
+
+    it('filters on each keystroke, with no button to press', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      const field = await search();
+
+      await user.type(field, 'A');
+      expect(visibleTickers()).toEqual(['AAPL', 'AMZN']);
+
+      await user.type(field, 'M');
+      expect(visibleTickers()).toEqual(['AMZN']);
+    });
+
+    it('matches case-insensitively and ignores spaces around the query', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.type(await search(), '  aapl  ');
+
+      expect(visibleTickers()).toEqual(['AAPL']);
+    });
+
+    it('says so when nothing matches, rather than showing an empty table', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.type(await search(), 'TSLA');
+
+      expect(await screen.findByText('No matching stocks')).toBeInTheDocument();
+      expect(screen.queryByRole('rowheader')).not.toBeInTheDocument();
+    });
+
+    it('restores every row when the clear button empties the field', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      const field = await search();
+      await user.type(field, 'MS');
+      expect(visibleTickers()).toEqual(['MSFT']);
+
+      await user.click(screen.getByRole('button', { name: /clear search/i }));
+
+      expect(field).toHaveValue('');
+      expect(visibleTickers()).toEqual(['AAPL', 'MSFT', 'AMZN']);
+      // Focus comes back so the next search can just be typed.
+      expect(field).toHaveFocus();
+    });
+
+    it('offers no clear button until there is something to clear', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      const field = await search();
+      expect(screen.queryByRole('button', { name: /clear search/i })).not.toBeInTheDocument();
+
+      await user.type(field, 'A');
+
+      expect(screen.getByRole('button', { name: /clear search/i })).toBeInTheDocument();
+    });
+
+    it('reports how many rows survive the filter', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.type(await search(), 'A');
+
+      expect(screen.getByText('2 of 3 holdings shown')).toBeInTheDocument();
+    });
+
+    it('leaves the subscription and the totals alone — it only hides rows', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      const socket = await openSocket();
+      await user.type(await search(), 'MSFT');
+
+      // Still watching all three: a hidden row is still a holding.
+      expect(socket.sentCommands.at(-1)).toEqual({ action: 'subscribe', tickers: ['AAPL', 'AMZN', 'MSFT'] });
+      expect(mockedQuotes.listQuotes).toHaveBeenCalledWith(['AAPL', 'AMZN', 'MSFT'], expect.anything());
+      expect(screen.getByText('40')).toBeInTheDocument();
+    });
+  });
+
   describe('the live feed', () => {
     beforeEach(() => {
       mockedPortfolios.getPortfolio.mockResolvedValue(
