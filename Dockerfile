@@ -42,11 +42,21 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Non-root. nginx:alpine ships an `nginx` user; the directories it must write to are handed over
 # explicitly, and the port is above 1024 so no capability to bind a privileged port is needed.
-RUN mkdir -p /var/cache/nginx /var/run \
- && chown -R nginx:nginx /var/cache/nginx /var/run /usr/share/nginx/html /etc/nginx/conf.d
+#
+# `/tmp/nginx` holds the pid file and the temp paths. The stock config puts the pid at /run/nginx.pid,
+# which the nginx user cannot create — the container exits immediately with "open() /run/nginx.pid
+# failed (13: Permission denied)" — so both are relocated below and in the CMD.
+RUN mkdir -p /var/cache/nginx /tmp/nginx \
+ && chown -R nginx:nginx /var/cache/nginx /tmp/nginx /usr/share/nginx/html /etc/nginx/conf.d \
+ # The pid path is rewritten in nginx.conf rather than passed with `-g`, which would collide with the
+ # directive already there ("pid directive is duplicate"). The `user` directive is dropped because it
+ # is meaningless — and warned about on every start — once the master process is not root.
+ && sed -i 's|^pid .*|pid /tmp/nginx/nginx.pid;|' /etc/nginx/nginx.conf \
+ && sed -i '/^user /d' /etc/nginx/nginx.conf
 
-ENV SERVER_PORT=8080 \
-    API_UPSTREAM=http://api:8080
+# No API_UPSTREAM: this image proxies nothing. Where the API lives is a *browser*-side concern, set
+# through APP_API_BASE_URL / APP_WS_URL at container start.
+ENV SERVER_PORT=8080
 
 USER nginx
 EXPOSE 8080

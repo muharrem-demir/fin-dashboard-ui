@@ -12,14 +12,19 @@ app:
   environmentLabel: ""
 
 api:
-  # Relative by design: the dev server and the production nginx image both proxy this prefix to
-  # the Java API, which keeps the browser on a single origin and sidesteps CORS.
-  baseUrl: /api/v1
+  # The browser calls the API directly — nothing proxies these requests. The URL is therefore
+  # absolute and points at wherever the Java backend is actually listening, which for a local
+  # checkout is port 8080.
+  #
+  # Because this is a cross-origin call, the backend MUST send CORS headers that allow this app's
+  # origin. See the "Cross-origin requests" section of README.md.
+  baseUrl: http://localhost:8080/api/v1
   timeoutMs: 15000
 
 websocket:
-  # Relative too. Resolved against the page origin, upgrading http -> ws and https -> wss.
-  url: /ws/quotes
+  # Absolute too, and for the same reason. `ws://` for a plain-HTTP backend; a TLS deployment needs
+  # `wss://`. The backend's own QUOTES_STREAM_ALLOWED_ORIGINS controls who may connect.
+  url: ws://localhost:8080/ws/quotes
   reconnect:
     enabled: true
     initialDelayMs: 1000

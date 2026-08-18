@@ -3,21 +3,66 @@
 # Container start-up: turn environment variables into the two files nginx and the browser read.
 #
 # This is what makes the image environment-agnostic. The bundle is built once with the YAML defaults
-# baked in; here, at start-up, a deployment may point it at a different API without a rebuild:
+# baked in; here, at start-up, a deployment says where its API lives:
 #
-#   docker run -e APP_API_BASE_URL=https://api.example.com/api/v1 fin-dashboard-ui
+#   docker run -e APP_API_BASE_URL=https://api.example.com/api/v1 \
+#              -e APP_WS_URL=wss://api.example.com/ws/quotes \
+#              fin-dashboard-ui
+#
+# Nothing is proxied — the browser calls that API directly — so those two values must be reachable
+# from the *browser*, not merely from inside the container network. A compose service name such as
+# `http://api:8080` will not resolve in a user's browser; the published host port will.
 #
 set -eu
 
-API_UPSTREAM="${API_UPSTREAM:-http://api:8080}"
 SERVER_PORT="${SERVER_PORT:-8080}"
 
 HTML_DIR=/usr/share/nginx/html
 CONFIG_JS="${HTML_DIR}/config.js"
 
+# ---- Content-Security-Policy connect-src ---------------------------------------------------------
+# The policy has to name the API and WebSocket origins explicitly, because the browser applies CSP
+# before it ever gets to CORS. Origins are derived from the configured URLs: scheme + host + port,
+# with the path stripped.
+origin_of() {
+  # http://host:port/api/v1 -> http://host:port
+  printf '%s' "$1" | sed -n 's|^\([a-zA-Z][a-zA-Z0-9+.-]*://[^/]*\).*|\1|p'
+}
+
+CONNECT_SRC="'self'"
+
+for url in "${APP_API_BASE_URL:-}" "${APP_WS_URL:-}"; do
+  [ -n "${url}" ] || continue
+
+  origin=$(origin_of "${url}")
+  [ -n "${origin}" ] || continue
+
+  case " ${CONNECT_SRC} " in
+    *" ${origin} "*) ;;
+    *) CONNECT_SRC="${CONNECT_SRC} ${origin}" ;;
+  esac
+done
+
+export SERVER_PORT
+
+# ---- Security headers ----------------------------------------------------------------------------
+# Written to their own file because nginx's `add_header` does not merge: every location that sets one
+# header discards all inherited ones, so each has to re-include the full set. One file, several
+# includes, no chance of the policy drifting between them.
+#
+# The extension is `.inc`, not `.conf`, so the main nginx.conf's `include conf.d/*.conf` does not pick
+# it up as a top-level block.
+cat > /etc/nginx/conf.d/security-headers.inc <<EOF
+add_header X-Content-Type-Options     "nosniff"      always;
+add_header X-Frame-Options            "DENY"         always;
+add_header Referrer-Policy            "no-referrer"  always;
+add_header Cross-Origin-Opener-Policy "same-origin"  always;
+add_header Content-Security-Policy    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ${CONNECT_SRC}; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
+EOF
+
 # ---- nginx configuration ------------------------------------------------------------------------
-# Only the two placeholders are substituted: nginx's own `$host`, `$uri` and friends must survive.
-envsubst '${API_UPSTREAM} ${SERVER_PORT}' \
+# Only the port is substituted: nginx's own `$host`, `$uri` and friends must survive.
+envsubst '${SERVER_PORT}' \
   < /etc/nginx/templates/nginx.conf.template \
   > /etc/nginx/conf.d/default.conf
 
@@ -53,7 +98,12 @@ json_escape() {
   printf '};\n'
 } > "${CONFIG_JS}"
 
-echo "fin-dashboard-ui: serving on :${SERVER_PORT}, proxying /api and /ws to ${API_UPSTREAM}"
+if [ -z "${APP_API_BASE_URL:-}" ]; then
+  echo "fin-dashboard-ui: WARNING - APP_API_BASE_URL is not set; the bundle's built-in default will be" \
+       "used, which is probably http://localhost:8080/api/v1."
+fi
+
+echo "fin-dashboard-ui: serving on :${SERVER_PORT}; browser calls the API directly (connect-src: ${CONNECT_SRC})"
 
 # `exec` so nginx becomes PID 1 and receives SIGTERM directly — otherwise `docker stop` waits out the
 # full timeout before killing the container.

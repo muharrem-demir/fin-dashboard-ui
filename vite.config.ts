@@ -5,46 +5,28 @@ import { defineConfig, loadEnv } from 'vite';
 import { appConfigPlugin } from './vite-plugins/app-config-plugin';
 
 /**
- * The dev server proxies `/api` and `/ws` to the Java backend.
+ * The dev server serves the app and nothing else — there is no proxy.
  *
- * This is what keeps the browser on one origin. The backend registers no CORS mapping for its REST
- * controllers, so a direct `fetch('http://localhost:8080/api/v1/portfolios')` from the dev server's
- * origin would be blocked by the browser before it ever reached Spring — and the nginx image does the
- * same proxying in production, so relative URLs are correct in both.
+ * The browser calls the Java API directly at the absolute URL in `config/*.yaml`, which means those
+ * requests are cross-origin and the backend has to allow this origin itself. Point the app at a
+ * different backend with APP_API_BASE_URL / APP_WS_URL rather than by adding a proxy here.
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiTarget = env.API_PROXY_TARGET ?? 'http://localhost:8080';
-  const wsTarget = env.WS_PROXY_TARGET ?? apiTarget;
 
   return {
     plugins: [appConfigPlugin(), react(), tailwindcss()],
 
     server: {
       port: Number(env.PORT ?? 5173),
-      // Fail loudly rather than silently moving to 5174, which would leave the configured proxy
-      // target and the actual origin out of step.
+      // Fail loudly rather than silently moving to 5174: the port is part of this app's origin, and
+      // the backend's CORS allow-list names that origin exactly.
       strictPort: true,
-      proxy: {
-        '/api': {
-          target: apiTarget,
-          changeOrigin: true,
-        },
-        '/ws': {
-          target: wsTarget,
-          ws: true,
-          changeOrigin: true,
-        },
-      },
     },
 
     preview: {
       port: Number(env.PREVIEW_PORT ?? 4173),
       strictPort: true,
-      proxy: {
-        '/api': { target: apiTarget, changeOrigin: true },
-        '/ws': { target: wsTarget, ws: true, changeOrigin: true },
-      },
     },
 
     build: {

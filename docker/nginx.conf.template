@@ -1,11 +1,18 @@
 # nginx configuration for the built dashboard.
 #
-# Rendered by docker/entrypoint.sh, which substitutes ${API_UPSTREAM} and ${SERVER_PORT} — nginx does
-# not read environment variables itself.
+# Rendered by docker/entrypoint.sh, which substitutes ${SERVER_PORT} — nginx does not read environment
+# variables itself. The security headers, including the CSP built from the configured API URLs, are
+# written by the same script to /etc/nginx/conf.d/security-headers.inc.
 #
-# The reverse proxy is the point of this file. Serving the bundle and proxying /api and /ws from the
-# same origin means the browser makes no cross-origin request at all, so the backend needs no CORS
-# configuration and the relative URLs in config/config.default.yaml are correct in every environment.
+# This server serves static files only. It does not proxy the API: the browser calls the backend
+# directly, which makes those requests cross-origin and puts the CORS headers squarely on the
+# backend's side. The one thing this file must get right for that to work is the Content-Security-
+# Policy `connect-src`, which has to name the API and WebSocket origins or the browser blocks the
+# requests before CORS is even considered.
+#
+# Note the repeated `include` of the security headers. nginx's `add_header` does not merge: a location
+# that declares even one `add_header` discards every inherited one, so a block that sets Cache-Control
+# silently loses the whole security policy unless it re-includes it.
 
 server {
     listen       ${SERVER_PORT};
@@ -15,8 +22,6 @@ server {
     root  /usr/share/nginx/html;
     index index.html;
 
-    # Behind another proxy or load balancer, the client's real address and scheme arrive in headers;
-    # passing them through is what keeps redirects and logs honest.
     absolute_redirect off;
 
     gzip              on;
@@ -25,81 +30,39 @@ server {
     gzip_proxied      any;
     gzip_types        text/plain text/css application/javascript application/json image/svg+xml;
 
-    # ---- Security headers -------------------------------------------------------------------------
-    # A single-origin app with no third-party assets can afford a strict policy. `connect-src 'self'`
-    # covers both the API and the WebSocket, since both are proxied through this server.
-    add_header X-Content-Type-Options    "nosniff"        always;
-    add_header X-Frame-Options           "DENY"           always;
-    add_header Referrer-Policy           "no-referrer"    always;
-    add_header Cross-Origin-Opener-Policy "same-origin"   always;
-    add_header Content-Security-Policy   "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
-
-    # ---- API ---------------------------------------------------------------------------------------
-    location /api/ {
-        proxy_pass         ${API_UPSTREAM};
-        proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-
-        # Long enough for the quote provider's own timeout (10s by default) plus a margin, so a slow
-        # upstream surfaces as the backend's 502 rather than as nginx's own 504.
-        proxy_connect_timeout 5s;
-        proxy_send_timeout    30s;
-        proxy_read_timeout    30s;
-    }
-
-    # ---- Live quotes -------------------------------------------------------------------------------
-    location /ws/ {
-        proxy_pass         ${API_UPSTREAM};
-        proxy_http_version 1.1;
-
-        # The three lines that make a WebSocket upgrade work at all.
-        proxy_set_header   Upgrade    $http_upgrade;
-        proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host       $host;
-
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-
-        # The feed pushes every three seconds, so a one-hour idle timeout only ever expires on a
-        # connection that is genuinely dead. Without raising it, nginx closes healthy sockets after 60s
-        # and the client reconnects for no reason.
-        proxy_read_timeout  3600s;
-        proxy_send_timeout  3600s;
-        proxy_buffering     off;
-    }
+    include /etc/nginx/conf.d/security-headers.inc;
 
     # ---- Static assets -----------------------------------------------------------------------------
     # Hashed filenames, so they can be cached indefinitely and immutably.
     location /assets/ {
-        expires    1y;
-        add_header Cache-Control "public, immutable";
+        include    /etc/nginx/conf.d/security-headers.inc;
+        # One directive, not `expires` as well: both emit Cache-Control and the response ends up
+        # carrying it twice.
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
         try_files  $uri =404;
     }
 
     # Never cached: it is rewritten at container start, and a cached copy would point a promoted image
     # at the previous environment's API.
     location = /config.js {
-        expires   -1;
-        add_header Cache-Control "no-store, must-revalidate";
+        include    /etc/nginx/conf.d/security-headers.inc;
+        add_header Cache-Control "no-store, must-revalidate" always;
     }
 
     location = /index.html {
-        expires   -1;
-        add_header Cache-Control "no-store, must-revalidate";
+        include    /etc/nginx/conf.d/security-headers.inc;
+        add_header Cache-Control "no-store, must-revalidate" always;
     }
 
     location /healthz {
         access_log off;
+        default_type text/plain;
         return 200 "ok\n";
-        add_header Content-Type text/plain;
     }
 
     # Client-side routing: an unknown path is a React Router route, not a missing file.
     location / {
+        include   /etc/nginx/conf.d/security-headers.inc;
         try_files $uri $uri/ /index.html;
     }
 }

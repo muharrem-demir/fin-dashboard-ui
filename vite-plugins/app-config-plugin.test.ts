@@ -1,6 +1,6 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { deepMerge, loadAppConfig } from './app-config-plugin';
 
@@ -90,5 +90,35 @@ describe('loadAppConfig', () => {
     writeFileSync(join(configDir, 'config.broken.yaml'), '- just\n- a\n- list\n');
 
     expect(() => loadAppConfig({ configDir, mode: 'broken', env: {} })).toThrow(/must contain a YAML mapping/);
+  });
+});
+
+/**
+ * Guards the repository's own configuration, not the loader.
+ *
+ * Nothing proxies API traffic any more: the browser calls the backend directly, so a relative
+ * `baseUrl` would resolve against the dev server's own origin and 404 rather than reaching the API.
+ * That failure looks like a broken backend, so it is worth catching here instead.
+ */
+describe('the committed configuration', () => {
+  const configDir = resolve(__dirname, '..', 'config');
+
+  it.each(['development', 'production'])('uses absolute URLs in %s mode', (mode) => {
+    const config = loadAppConfig({ configDir, mode, env: {} });
+    const api = config.api as { baseUrl: string };
+    const websocket = config.websocket as { url: string };
+
+    expect(api.baseUrl).toMatch(/^https?:\/\//);
+    expect(websocket.url).toMatch(/^wss?:\/\//);
+  });
+
+  it('points the WebSocket at the same host as the API by default', () => {
+    // Not a hard requirement, but a mismatch here is almost always a typo, and it costs a deployment
+    // two CORS allow-lists instead of one.
+    const config = loadAppConfig({ configDir, mode: 'development', env: {} });
+    const apiHost = new URL((config.api as { baseUrl: string }).baseUrl).host;
+    const wsHost = new URL((config.websocket as { url: string }).url).host;
+
+    expect(wsHost).toBe(apiHost);
   });
 });

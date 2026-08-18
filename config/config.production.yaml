@@ -1,8 +1,12 @@
 # Production build (`npm run build`).
 #
-# The nginx image serves the bundle and reverse-proxies /api and /ws to the API container, so the
-# relative URLs stay correct. To point a deployed container at a different API without rebuilding,
-# set APP_API_BASE_URL / APP_WS_URL on the container (see docker/entrypoint.sh).
+# The URLs inherited from config.default.yaml point at localhost:8080, which is almost certainly wrong
+# for a deployment. Because the browser now calls the API directly, every deployment must say where
+# that API is — either at build time with APP_API_BASE_URL / APP_WS_URL, or at container start through
+# the same variables (docker/entrypoint.sh writes them into /config.js).
+#
+# Getting this wrong is loud rather than subtle: the app renders and every request fails with a
+# network error, which is what the error states are for.
 
 app:
   environmentLabel: ""

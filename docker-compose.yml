@@ -1,12 +1,16 @@
-# The dashboard, plus the API and database it talks to.
+# The dashboard container.
 #
-#   docker compose up -d --build          # everything; open http://localhost:3000
-#   docker compose up -d postgres api     # backend only, then `npm run dev` for the UI
+#   docker compose up -d --build          # http://localhost:3000
 #
-# The API and database definitions mirror the backend repository's own compose file, so this brings up
-# a complete stack from one command rather than requiring two repositories to be started in order.
-# Values come from .env when present; see .env.example. The credentials below are development defaults
-# for a throwaway local container and must not be used anywhere else.
+# The backend is expected to be running separately (see ../../java/fin-dashboard). Nothing here
+# proxies to it: the browser calls the API directly, so the URLs below are the ones a *browser on the
+# host* must be able to reach. That is why they say localhost:8080 and not a compose service name —
+# `http://api:8080` resolves inside the compose network, never in the user's browser.
+#
+# Because those calls are cross-origin, the backend must allow this app's origin
+# (http://localhost:3000 by default). See "Cross-origin requests" in README.md.
+#
+# Values come from .env when present; see .env.example.
 
 services:
   ui:
@@ -17,12 +21,11 @@ services:
         BUILD_MODE: ${BUILD_MODE:-production}
     container_name: fin-dashboard-ui
     environment:
-      # Where nginx forwards /api and /ws. A service name, so it resolves on the compose network.
-      API_UPSTREAM: ${API_UPSTREAM:-http://api:8080}
       SERVER_PORT: 8080
-      # Left unset, the bundle keeps its build-time defaults (/api/v1 and /ws/quotes), which the nginx
-      # proxy above already serves. Set APP_API_BASE_URL only to bypass the proxy and call an API
-      # directly from the browser — which then needs CORS on that API.
+      # Where the browser should send API and WebSocket traffic. These also drive the
+      # Content-Security-Policy `connect-src` that the entrypoint renders into the nginx config.
+      APP_API_BASE_URL: ${APP_API_BASE_URL:-http://localhost:8080/api/v1}
+      APP_WS_URL: ${APP_WS_URL:-ws://localhost:8080/ws/quotes}
       APP_ENVIRONMENT_LABEL: ${APP_ENVIRONMENT_LABEL:-DOCKER}
       APP_LOG_LEVEL: ${APP_LOG_LEVEL:-warn}
     ports:

@@ -9,28 +9,37 @@ No authentication — the API is open by design, so the UI has no login.
 
 ## Quick start
 
-The backend has to be running first.
+**Before running the UI make sure to run backend API.**
 
-After running the backend API, execute:
+Application can be run using NPM or Docker Compose. Running directives are listed below.
 
-```bash
-npm run dev
-```
-
-<http://localhost:5173>. The dev server proxies `/api` and `/ws` to `localhost:8080`, so the browser stays
-on one origin and no CORS configuration is needed anywhere.
-
-Or bring up UI — from this directory:
+### Run using Docker Compose:
 
 ```bash
 docker compose up -d --build   # http://localhost:3000
 ```
 
+**In your browser go to <http://localhost:3000>.**
+
+### Run using NPM:
+
+```bash
+npm run dev
+```
+
+**In your browser go to <http://localhost:5173>.**
+
+Nothing is proxied — the browser calls the API directly at
+`http://localhost:8080/api/v1` and opens its WebSocket to `ws://localhost:8080/ws/quotes`. That makes
+every request cross-origin, so **the backend has to allow this origin**; see
+[Cross-origin requests](#cross-origin-requests) below.
+
+
 ## Commands
 
 | Command                 | What it does                                                   |
 | ----------------------- | -------------------------------------------------------------- |
-| `npm run dev`           | Dev server on :5173 with the API proxy                         |
+| `npm run dev`           | Dev server on :5173                                            |
 | `npm run verify`        | lint + typecheck + test + build. The one to run before pushing |
 | `npm run lint`          | ESLint, `--max-warnings=0`                                     |
 | `npm run typecheck`     | `tsc --build` across both project references                   |
@@ -39,7 +48,7 @@ docker compose up -d --build   # http://localhost:3000
 | `npm run format`        | Prettier                                                       |
 | `npm run build`         | **Lints and type-checks, then builds**                         |
 | `npm run build:only`    | Just the build, for a pipeline that already ran the gates      |
-| `npm run preview`       | Serve `dist/` locally, proxy included                          |
+| `npm run preview`       | Serve `dist/` locally                                          |
 
 `npm run build` runs the linter and type-checker first on purpose: a bundle that would fail CI cannot be
 produced by accident.
@@ -152,14 +161,42 @@ The merged result is validated against a Zod schema on first load. A missing or 
 first paint with the offending path named, rather than surfacing later as a request to `undefined/portfolios`.
 
 `config/` is committed. It holds no secrets — everything in it ends up in the browser bundle. Machine-specific
-settings (proxy target, ports) live in `.env`; copy `.env.example`.
+settings (ports) live in `.env`; copy `.env.example`.
 
-### Why the URLs are relative
+<a id="cross-origin-requests"></a>
 
-`api.baseUrl` is `/api/v1` and `websocket.url` is `/ws/quotes`. The dev server and the production nginx image
-both proxy those prefixes to the backend, so the browser only ever talks to its own origin. That means the
-backend needs no CORS configuration, and an HTTPS deployment works without a config change — the WebSocket
-URL is resolved against the page origin, upgrading `http`→`ws` and `https`→`wss`.
+### Cross-origin requests
+
+The URLs are absolute — `http://localhost:8080/api/v1` and `ws://localhost:8080/ws/quotes` — and nothing
+proxies them. The browser talks to the backend directly, which means the app's origin and the API's origin
+differ, and two things have to permit that:
+
+**1. The backend must send CORS headers for `/api/**`.** It does not today: only the WebSocket has an
+origin allow-list (`QUOTES_STREAM_ALLOWED_ORIGINS`, default `*`). Without a CORS mapping every REST call
+fails in the browser with a CORS error while `curl` against the same URL succeeds — a symptom worth
+recognising, because the network tab makes it look like the API is down. The smallest backend change:
+
+```java
+@Configuration
+class CorsConfig implements WebMvcConfigurer {
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+                .allowedOrigins("http://localhost:5173", "http://localhost:3000")
+                .allowedMethods("GET", "POST", "PATCH", "DELETE");
+    }
+}
+```
+
+`PATCH` and `DELETE` matter: both are non-simple methods, so the browser sends a preflight `OPTIONS`
+first, and renaming or deleting fails without them even if `GET` works.
+
+**2. The Content-Security-Policy must name those origins.** CSP is checked before CORS, so an origin
+missing from `connect-src` is blocked before the request is sent. The container builds `connect-src`
+automatically from `APP_API_BASE_URL` and `APP_WS_URL` (see `docker/entrypoint.sh`).
+
+Every origin appears in two places — the backend's allow-list and this app's config — so changing a port
+means changing both.
 
 ## Testing
 
@@ -192,20 +229,22 @@ source — just static files, running as a non-root user.
 
 ```bash
 docker build -t fin-dashboard-ui .
-docker run -p 3000:8080 -e API_UPSTREAM=http://host.docker.internal:8080 fin-dashboard-ui
+docker run -p 3000:8080   -e APP_API_BASE_URL=http://localhost:8080/api/v1   -e APP_WS_URL=ws://localhost:8080/ws/quotes   fin-dashboard-ui
 ```
 
-| Variable                | Default           | Meaning                                   |
-| ----------------------- | ----------------- | ----------------------------------------- |
-| `API_UPSTREAM`          | `http://api:8080` | Where nginx forwards `/api` and `/ws`     |
-| `SERVER_PORT`           | `8080`            | Port nginx listens on                     |
-| `APP_API_BASE_URL`      | —                 | Overrides the API base URL in the browser |
-| `APP_WS_URL`            | —                 | Overrides the WebSocket URL               |
-| `APP_ENVIRONMENT_LABEL` | —                 | Badge in the header                       |
-| `APP_LOG_LEVEL`         | —                 | `error` \| `warn` \| `info` \| `debug`    |
+| Variable                | Default | Meaning                                            |
+| ----------------------- | ------- | -------------------------------------------------- |
+| `APP_API_BASE_URL`      | —       | Where the browser sends API calls; also drives CSP |
+| `APP_WS_URL`            | —       | Where the browser opens the quote feed; also CSP   |
+| `SERVER_PORT`           | `8080`  | Port nginx listens on                              |
+| `APP_ENVIRONMENT_LABEL` | —       | Badge in the header                                |
+| `APP_LOG_LEVEL`         | —       | `error` \| `warn` \| `info` \| `debug`             |
 
-nginx keeps the WebSocket location's read timeout at an hour: the feed pushes every three seconds, so the
-default 60s would close healthy sockets and cause needless reconnects.
+nginx serves static files only — it proxies nothing. `APP_API_BASE_URL` and `APP_WS_URL` are read by the
+browser, so they must be reachable _from the browser_: a compose service name like `http://api:8080`
+resolves inside the container network and nowhere else. Use the published host port.
+
+Leaving them unset is warned about at start-up and falls back to whatever was baked in at build time.
 
 ## CI
 

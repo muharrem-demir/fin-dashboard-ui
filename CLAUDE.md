@@ -12,7 +12,7 @@ There is no authentication. Every endpoint is open by design.
 ## Commands
 
 ```bash
-npm run dev            # Vite dev server on :5173, proxying /api and /ws to :8080
+npm run dev            # Vite dev server on :5173 (serves the app only; nothing is proxied)
 npm run verify         # lint + typecheck + test + build — run this before saying you are done
 npm run lint           # ESLint, --max-warnings=0
 npm run lint:fix
@@ -165,9 +165,19 @@ Adding a setting means: add it to `config.default.yaml`, add it to the Zod schem
 in `vite-plugins/app-config-plugin.ts` and to `docker/entrypoint.sh`. The schema is not optional; an
 unvalidated setting will eventually be `undefined` in production.
 
-API and WebSocket URLs are **relative** (`/api/v1`, `/ws/quotes`). The dev server and the nginx image both
-proxy them to the backend, which keeps the browser on one origin and means the backend needs no CORS
-configuration. Do not "fix" this by hard-coding `http://localhost:8080`.
+API and WebSocket URLs are **absolute** (`http://localhost:8080/api/v1`, `ws://localhost:8080/ws/quotes`)
+and nothing proxies them — not the dev server, not the nginx image. The browser calls the backend directly.
+
+Two consequences to keep in mind before debugging a failed request:
+
+- **The calls are cross-origin, so the backend must send CORS headers for `/api/**`.** If every REST call
+  fails in the browser while `curl` against the same URL works, that is the cause, not a bug here.
+  `PATCH` and `DELETE` need to be in the allowed methods or rename and delete fail on preflight while
+  `GET` looks fine.
+- **The container's CSP `connect-src` is built from `APP_API_BASE_URL` / `APP_WS_URL`.** CSP is enforced
+  before CORS, so an origin missing from those variables is blocked before a request is sent.
+
+To point at a different backend, set `APP_API_BASE_URL` / `APP_WS_URL`. Do not reintroduce a proxy.
 
 No source file reads `import.meta.env`. Configuration comes from `virtual:app-config` via
 `src/config/app-config.ts`, which is also what lets the Jest suite load `config.test.yaml`.

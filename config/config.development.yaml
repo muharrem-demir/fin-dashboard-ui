@@ -1,8 +1,11 @@
 # Local development (`npm run dev`).
 #
-# The Vite dev server proxies /api and /ws to the Java API, so the relative URLs inherited from
-# config.default.yaml already point at http://localhost:8080. Override the proxy target with
-# API_PROXY_TARGET / WS_PROXY_TARGET rather than changing the URLs here.
+# The dev server serves only the app; it proxies nothing. The browser talks straight to the Java API
+# at the absolute URLs inherited from config.default.yaml, so the backend must allow this origin
+# (http://localhost:5173) in its CORS configuration.
+#
+# To point at a backend somewhere other than localhost:8080, set APP_API_BASE_URL and APP_WS_URL
+# before `npm run dev` — see .env.example.
 
 app:
   environmentLabel: DEV

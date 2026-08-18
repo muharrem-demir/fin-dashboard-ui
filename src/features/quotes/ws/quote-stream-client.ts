@@ -53,9 +53,13 @@ export interface QuoteStreamOptions extends QuoteStreamHandlers {
 /**
  * Turns a configured URL into an absolute WebSocket URL.
  *
- * The config keeps `/ws/quotes` relative so one value works behind the dev proxy, behind nginx, and
- * behind TLS. Resolving it here — rather than asking deployments to spell out `wss://host/ws/quotes`
- * — is what makes an https deployment work without a config change.
+ * The configured value is normally absolute (`ws://host:8080/ws/quotes`), because the browser connects
+ * to the backend directly rather than through anything that could rewrite a relative path. An
+ * `http(s)://` URL is accepted too and upgraded to `ws(s)://`, which saves a deployment from having to
+ * remember two spellings of the same host.
+ *
+ * A relative value still resolves against the page origin, so a deployment that does choose to put the
+ * API behind the same host keeps working without a code change.
  */
 export function resolveSocketUrl(configured: string, origin: string = window.location.origin): string {
   if (/^wss?:\/\//i.test(configured)) {
