@@ -32,7 +32,6 @@ Nothing is proxied — the browser calls the API directly at
 every request cross-origin, so **the backend has to allow this origin**; see
 [Cross-origin requests](#cross-origin-requests) below.
 
-
 ## Commands
 
 | Command                 | What it does                                                   |
