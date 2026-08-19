@@ -330,7 +330,14 @@ export function HoldingsTable({
                 <th
                   key={column.id}
                   scope="col"
-                  className={cn(HEADER_CLASS, column.align === 'right' ? 'text-right' : 'text-left')}
+                  className={cn(
+                    HEADER_CLASS,
+                    // Set in its own case rather than the small caps the sortable headings wear, and
+                    // pointing at nothing: the label is text, not a control, and an I-beam over it
+                    // invites a click that would do nothing.
+                    'cursor-default normal-case',
+                    column.align === 'right' ? 'text-right' : 'text-left',
+                  )}
                 >
                   {column.label}
                 </th>
