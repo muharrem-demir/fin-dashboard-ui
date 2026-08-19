@@ -1,6 +1,6 @@
 # fin-dashboard-ui
 
-Front end for the [fin-dashboard](../../java/fin-dashboard) API. List and edit stock portfolios, add and
+Front end for the [fin-dashboard](https://github.com/muharrem-demir/fin-dashboard) API. List and edit stock portfolios, add and
 remove holdings, and watch prices move as they are pushed over a WebSocket.
 
 **React 19 · TypeScript (strict) · Vite 7 · Tailwind CSS 4 · TanStack Query 5 · Jest**
@@ -260,4 +260,4 @@ Two behaviours shape this UI and are worth knowing before reading the code:
 - **`percentChange` is omitted, not zeroed,** when the previous close is unknown. The UI renders an em dash
   for that rather than a misleading `0.00%`, and distinguishes "no data for this symbol" from "no price yet".
 
-Full API detail is in the [backend README](../../java/fin-dashboard/README.md).
+Full API detail is in the [backend README](https://raw.githubusercontent.com/muharrem-demir/fin-dashboard/refs/heads/main/README.md).

@@ -5,7 +5,7 @@ Guidance for Claude Code working in this repository.
 ## What this is
 
 The front end for **fin-dashboard**: list and edit stock portfolios, and watch their holdings reprice in
-real time. React 19 + TypeScript + Vite, talking to a Spring Boot API at `../../java/fin-dashboard`.
+real time. React 19 + TypeScript + Vite, talking to a Spring Boot API at `https://github.com/muharrem-demir/fin-dashboard`.
 
 There is no authentication. Every endpoint is open by design.
 
@@ -28,14 +28,10 @@ npm run build:only     # vite build alone, for when the gates already ran
 `npm run build` runs the linter and the type-checker first, on purpose: a bundle that would fail CI
 cannot be produced by accident. Use `build:only` inside a pipeline that has already linted.
 
-The backend must be running for the app to do anything:
+The backend must be running for the app to do anything.
 
-```bash
-cd ../../java/fin-dashboard && docker compose up -d
-```
-
-Or bring up the whole stack, UI included, from this directory with `docker compose up -d --build`
-(<http://localhost:3000>).
+To run UI execute `docker compose up -d --build`
+(<http://localhost:9000>).
 
 ## Architecture
 
@@ -184,7 +180,7 @@ No source file reads `import.meta.env`. Configuration comes from `virtual:app-co
 
 ## The backend contract
 
-Base path `/api/v1`. Full detail in `../../java/fin-dashboard/README.md`; the parts that shape this client:
+Base path `/api/v1`. Full detail in `https://raw.githubusercontent.com/muharrem-demir/fin-dashboard/refs/heads/main/README.md`; the parts that shape this client:
 
 - `POST /portfolios/{id}/stocks` **accumulates** — adding a ticker already held increases the position
   rather than replacing it, and it returns the whole updated portfolio.

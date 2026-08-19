@@ -1,14 +1,14 @@
 # The dashboard container.
 #
-#   docker compose up -d --build          # http://localhost:3000
+#   docker compose up -d --build          # http://localhost:9000
 #
-# The backend is expected to be running separately (see ../../java/fin-dashboard). Nothing here
+# The backend is expected to be running separately (see https://github.com/muharrem-demir/fin-dashboard). Nothing here
 # proxies to it: the browser calls the API directly, so the URLs below are the ones a *browser on the
 # host* must be able to reach. That is why they say localhost:8080 and not a compose service name —
 # `http://api:8080` resolves inside the compose network, never in the user's browser.
 #
 # Because those calls are cross-origin, the backend must allow this app's origin
-# (http://localhost:3000 by default). See "Cross-origin requests" in README.md.
+# (http://localhost:9000 by default). See "Cross-origin requests" in README.md.
 #
 # Values come from .env when present; see .env.example.
 
