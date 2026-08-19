@@ -49,7 +49,12 @@ export function AppLayout(): React.JSX.Element {
         </div>
       </header>
 
-      <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      {/*
+        A flex column rather than a plain block, so a page can ask for the leftover height with
+        `flex-1` — which is what lets the portfolio list dock its watchlist to the foot of the screen
+        on a page too short to scroll. Pages that do not ask for it lay out exactly as before.
+      */}
+      <main id="main" className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <Outlet />
       </main>
 

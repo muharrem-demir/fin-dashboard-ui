@@ -64,7 +64,9 @@ export function PortfoliosPage(): React.JSX.Element {
   const list = portfolios.data ?? [];
 
   return (
-    <div className="flex flex-col gap-6">
+    // `flex-1` claims the shell's leftover height and `mt-auto` on the watchlist spends it, so the
+    // strip sits at the foot of the screen even when the portfolios above it do not fill it.
+    <div className="flex flex-1 flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-content-primary sm:text-3xl">Portfolios</h1>
@@ -156,7 +158,17 @@ export function PortfoliosPage(): React.JSX.Element {
         />
       )}
 
-      <div className="border-t border-border-subtle pt-6">
+      {/*
+        Docked to the foot of the viewport: `mt-auto` drops it to the bottom on a short page, and
+        `sticky bottom-0` keeps it there while a long list of portfolios scrolls behind it. Sticky
+        rather than fixed, for the reason AppLayout gives for its header — a fixed bar has to be paid
+        for with padding somewhere else, and the two drift apart the moment the bar changes height.
+        Scrolled to the very end it settles into flow, so it never covers the footer.
+
+        The negative margins bleed the band through the layout's own padding, so it reads as one strip
+        across the column rather than a floating card.
+      */}
+      <div className="sticky bottom-0 z-20 -mx-4 -mb-6 mt-auto border-t border-border-subtle bg-surface-base px-4 pt-4 pb-6 sm:-mx-6 sm:-mb-8 sm:px-6 sm:pb-8 lg:-mx-8 lg:px-8">
         <WatchlistSection />
       </div>
 
