@@ -68,13 +68,10 @@ export function WatchlistSection(): React.JSX.Element {
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id={headingId} className="text-lg font-semibold tracking-tight text-content-primary">
-            Watchlist
-          </h2>
-          <p className="mt-1 text-sm text-content-secondary">Symbols you follow outside any portfolio, priced live.</p>
-        </div>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id={headingId} className="text-lg font-semibold tracking-tight text-content-primary">
+          Watchlist
+        </h2>
 
         <Button
           size="sm"
