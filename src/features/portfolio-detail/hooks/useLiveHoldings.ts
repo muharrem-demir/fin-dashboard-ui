@@ -58,7 +58,10 @@ export function useLiveHoldings(stocks: readonly Stock[] | undefined): LiveHoldi
     return [...unique].sort();
   }, [stocks]);
 
-  const batch = useQuotesBatch(tickers);
+  // History rides along on the opening batch rather than on a request of its own: it is the same
+  // endpoint, and asking twice would re-fetch every quote just to collect the closes beside it. Nothing
+  // refreshes it afterwards — the feed carries no history — so it is fetched once, when the page opens.
+  const batch = useQuotesBatch(tickers, { includeHistory: true });
 
   const onTick = useCallback((tick: QuoteTickMessage) => {
     // The server's own timestamp is preferred over the arrival time, so the "age of data" reading is not

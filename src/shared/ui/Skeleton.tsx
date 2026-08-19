@@ -51,15 +51,16 @@ export function PortfolioListSkeleton({ count = 6 }: { readonly count?: number }
   );
 }
 
-/** Placeholder rows for the holdings table, matching its five columns. */
+/** Placeholder rows for the holdings table, matching its six data columns. */
 export function HoldingsTableSkeleton({ rows = 5 }: { readonly rows?: number }): React.JSX.Element {
   return (
     <div role="status" aria-label="Loading holdings" className="divide-y divide-border-subtle">
       {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className="grid grid-cols-2 items-center gap-4 px-5 py-4 sm:grid-cols-5">
+        <div key={index} className="grid grid-cols-2 items-center gap-4 px-5 py-4 sm:grid-cols-6">
           <Skeleton className="h-5 w-16" />
           <Skeleton className="h-5 w-12 justify-self-end sm:justify-self-auto" />
           <Skeleton className="hidden h-5 w-20 sm:block" />
+          <Skeleton className="hidden h-5 w-16 sm:block" />
           <Skeleton className="hidden h-5 w-16 sm:block" />
           <Skeleton className="hidden h-5 w-24 sm:block" />
         </div>

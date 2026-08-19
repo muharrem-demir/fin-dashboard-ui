@@ -4,9 +4,11 @@ import {
   formatCompactCurrency,
   formatCount,
   formatCurrency,
+  formatFullDate,
   formatPercentChange,
   formatRelativeTime,
   formatShares,
+  formatShortDate,
 } from './format';
 
 describe('formatCurrency', () => {
@@ -78,4 +80,29 @@ describe('formatRelativeTime', () => {
   ])('describes %p seconds ago as %p', (secondsAgo, expected) => {
     expect(formatRelativeTime(new Date(now.getTime() - secondsAgo * 1000), now)).toBe(expected);
   });
+});
+
+describe('formatShortDate and formatFullDate', () => {
+  it.each([
+    ['2026-08-14', 'Aug 14', 'Aug 14, 2026'],
+    ['2026-01-01', 'Jan 1', 'Jan 1, 2026'],
+    ['2025-12-31', 'Dec 31', 'Dec 31, 2025'],
+  ])('formats %p as %p and %p', (input, short, full) => {
+    expect(formatShortDate(input)).toBe(short);
+    expect(formatFullDate(input)).toBe(full);
+  });
+
+  it('reads the date in the zone it was written in, not the local one', () => {
+    // A LocalDate has no zone. Formatting it locally would render midnight UTC on the 1st as the
+    // previous day for anyone west of Greenwich, and label a whole chart a day out.
+    expect(formatShortDate('2026-03-01')).toBe('Mar 1');
+  });
+
+  it.each(['', 'yesterday', '2026-8-4', '2026-08-14T00:00:00Z'])(
+    'renders %p as the unavailable marker rather than an Invalid Date',
+    (input) => {
+      expect(formatShortDate(input)).toBe(NOT_AVAILABLE);
+      expect(formatFullDate(input)).toBe(NOT_AVAILABLE);
+    },
+  );
 });

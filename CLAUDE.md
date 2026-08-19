@@ -193,6 +193,10 @@ Base path `/api/v1`. Full detail in `../../java/fin-dashboard/README.md`; the pa
 - `percentChange` is **omitted** when the previous close is unknown or zero, rather than sent as `0.00`.
   Render an em dash for that, never a flat zero. `formatPercentChange` already does.
 - Quote requests and stream subscriptions are capped at **50 symbols**.
+- `GET /stocks/quotes?history=true` adds a `history` array of recent daily closes, one entry per ticker
+  that had any. The field is **absent** without the flag and **empty** when the provider had nothing — a
+  ticker with no closes is left out rather than sent with zero points. The detail page asks for it on the
+  opening batch; the live feed never carries history, so the charts are fetched once and do not move.
 - `GET /stocks/quotes` can legitimately return **502**: Yahoo rejects unauthenticated callers. This is
   expected, not a bug in this app. Shares stay correct and the table stays usable.
 - Errors are RFC 9457 problem documents; validation failures add `errors: [{field, message}]`.

@@ -5,7 +5,7 @@ import { Route, Routes } from 'react-router-dom';
 import * as portfolioApi from '../../portfolios/api/portfolio-api';
 import * as quoteApi from '../../quotes/api/quote-api';
 import { FakeWebSocket, installFakeWebSocket } from '../../../test/fake-websocket';
-import { aPortfolio, aQuote, aQuotesResponse, aStock } from '../../../test/factories';
+import { aPortfolio, aPriceHistory, aQuote, aQuotesResponse, aStock } from '../../../test/factories';
 import { renderWithProviders } from '../../../test/test-utils';
 
 import { PortfolioDetailPage } from './PortfolioDetailPage';
@@ -105,13 +105,16 @@ describe('PortfolioDetailPage', () => {
       );
     });
 
-    it('fetches quotes for every held ticker as soon as the holdings arrive', async () => {
+    it('fetches quotes and history for every held ticker as soon as the holdings arrive', async () => {
       mockedQuotes.listQuotes.mockResolvedValue(aQuotesResponse({ quotes: [] }));
 
       renderPage();
 
       await waitFor(() => {
-        expect(mockedQuotes.listQuotes).toHaveBeenCalledWith(['AAPL', 'MSFT'], expect.anything());
+        expect(mockedQuotes.listQuotes).toHaveBeenCalledWith(
+          ['AAPL', 'MSFT'],
+          expect.objectContaining({ includeHistory: true }),
+        );
       });
     });
 
@@ -407,7 +410,143 @@ describe('PortfolioDetailPage', () => {
       // Still watching all three: a hidden row is still a holding.
       expect(socket.sentCommands.at(-1)).toEqual({ action: 'subscribe', tickers: ['AAPL', 'AMZN', 'MSFT'] });
       expect(mockedQuotes.listQuotes).toHaveBeenCalledWith(['AAPL', 'AMZN', 'MSFT'], expect.anything());
+      expect(mockedQuotes.listQuotes).toHaveBeenCalledTimes(1);
       expect(screen.getByText('40')).toBeInTheDocument();
+    });
+  });
+
+  describe('the history column', () => {
+    beforeEach(() => {
+      mockedPortfolios.getPortfolio.mockResolvedValue(
+        aPortfolio({
+          id: 'p1',
+          stocks: [aStock({ ticker: 'AAPL', shares: 15 }), aStock({ ticker: 'MSFT', shares: 20 })],
+        }),
+      );
+      mockedQuotes.listQuotes.mockResolvedValue(
+        aQuotesResponse({
+          quotes: [aQuote({ ticker: 'AAPL', price: 150.25 }), aQuote({ ticker: 'MSFT', price: 198 })],
+          history: [
+            aPriceHistory({ ticker: 'AAPL', closes: [140, 143, 141, 147, 150.25] }),
+            // MSFT is deliberately absent: the provider having no history for a symbol is normal.
+          ],
+        }),
+      );
+    });
+
+    it('asks for history once, with the opening batch, and not again on a tick', async () => {
+      renderPage();
+
+      const socket = await openSocket();
+      await screen.findByRole('button', { name: 'Show AAPL price history' });
+
+      await act(async () => {
+        socket.emit({
+          type: 'quotes',
+          timestamp: '2026-08-18T09:14:05.000Z',
+          quotes: [{ ticker: 'AAPL', price: 999, previousClose: 150.25, percentChange: 565 }],
+          unresolved: [],
+          quoteCount: 1,
+        });
+        await Promise.resolve();
+      });
+
+      // The feed carries no history, so a price moving must not send the page back for the closes.
+      expect(await screen.findByText('$999.00')).toBeInTheDocument();
+      expect(mockedQuotes.listQuotes).toHaveBeenCalledTimes(1);
+      expect(mockedQuotes.listQuotes).toHaveBeenCalledWith(
+        ['AAPL', 'MSFT'],
+        expect.objectContaining({ includeHistory: true }),
+      );
+    });
+
+    it('gives the history column a heading that is not a sort control', async () => {
+      renderPage();
+
+      const heading = await screen.findByRole('columnheader', { name: 'History' });
+
+      expect(heading).toBeInTheDocument();
+      expect(within(heading).queryByRole('button')).not.toBeInTheDocument();
+      expect(heading).not.toHaveAttribute('aria-sort');
+    });
+
+    it('sits between the price and the change', async () => {
+      renderPage();
+
+      await screen.findByRole('columnheader', { name: 'History' });
+
+      const headings = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
+
+      expect(headings.slice(0, 6)).toEqual(['Ticker', 'Shares', 'Price', 'History', 'Change', 'Total value']);
+    });
+
+    it('draws a chart only for the tickers the provider had closes for', async () => {
+      renderPage();
+
+      expect(await screen.findByRole('button', { name: 'Show AAPL price history' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Show MSFT price history' })).not.toBeInTheDocument();
+    });
+
+    it('opens a dialog titled with the ticker, showing its dates and prices', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: 'Show AAPL price history' }));
+
+      const dialog = screen.getByRole('dialog');
+
+      expect(within(dialog).getByRole('heading', { name: 'AAPL' })).toBeInTheDocument();
+      expect(within(dialog).getByText('Aug 10, 2026 – Aug 14, 2026')).toBeInTheDocument();
+      // The chart's own numbers, read from the table that carries them for a screen reader.
+      expect(within(dialog).getByRole('rowheader', { name: 'Aug 12, 2026' })).toBeInTheDocument();
+      expect(within(dialog).getByRole('cell', { name: '$141.00' })).toBeInTheDocument();
+      expect(within(dialog).getByRole('cell', { name: '$150.25' })).toBeInTheDocument();
+    });
+
+    it('closes the dialog when the backdrop outside it is clicked', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: 'Show AAPL price history' }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      // The scrim is `aria-hidden` by design — it is the one element in a dialog assistive technology
+      // must not see — so there is no accessible query for it, and reaching the node directly is the
+      // only way to test that a click outside the panel dismisses it.
+      // eslint-disable-next-line testing-library/no-node-access -- see above
+      const backdrop = document.querySelector('.bg-overlay');
+
+      if (backdrop === null) {
+        throw new Error('The modal rendered without a backdrop');
+      }
+
+      await user.click(backdrop);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+    });
+
+    it('leaves the chart alone while the price beside it moves', async () => {
+      renderPage();
+
+      const socket = await openSocket();
+      const chart = await screen.findByRole('button', { name: 'Show AAPL price history' });
+      const drawnBefore = chart.innerHTML;
+
+      await act(async () => {
+        socket.emit({
+          type: 'quotes',
+          timestamp: '2026-08-18T09:14:05.000Z',
+          quotes: [{ ticker: 'AAPL', price: 400, previousClose: 150.25, percentChange: 166 }],
+          unresolved: [],
+          quoteCount: 1,
+        });
+        await Promise.resolve();
+      });
+
+      expect(await screen.findByText('$400.00')).toBeInTheDocument();
+      expect(chart.innerHTML).toBe(drawnBefore);
     });
   });
 

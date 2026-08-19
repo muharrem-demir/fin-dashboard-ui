@@ -1,5 +1,5 @@
 import type { Portfolio, PortfolioSummary, Stock } from '../features/portfolios/api/portfolio-schemas';
-import type { StockQuote, StockQuotes } from '../features/quotes/api/quote-schemas';
+import type { PriceHistory, PricePoint, StockQuote, StockQuotes } from '../features/quotes/api/quote-schemas';
 import type { QuoteTickMessage } from '../features/quotes/ws/stream-messages';
 
 /**
@@ -39,6 +39,30 @@ export function aPortfolio(overrides: Partial<Portfolio> = {}): Portfolio {
 
 export function aQuote(overrides: Partial<StockQuote> = {}): StockQuote {
   return { ticker: 'AAPL', price: 150.25, previousClose: 148.5, percentChange: 1.18, ...overrides };
+}
+
+export function aPricePoint(overrides: Partial<PricePoint> = {}): PricePoint {
+  return { date: '2026-08-14', close: 148.5, ...overrides };
+}
+
+/**
+ * Five trading days of closes, rising.
+ *
+ * A default with a direction rather than a flat line: most assertions about a chart are about which way
+ * it points, and a test that wants a fall says so with `closes`.
+ */
+export function aPriceHistory(
+  overrides: Partial<PriceHistory> & { readonly closes?: readonly number[] } = {},
+): PriceHistory {
+  const { closes, ...rest } = overrides;
+
+  const points =
+    rest.points ??
+    (closes ?? [140, 143, 141, 147, 150]).map((close, index) =>
+      aPricePoint({ date: `2026-08-${String(10 + index).padStart(2, '0')}`, close }),
+    );
+
+  return { ticker: 'AAPL', days: 5, points, ...rest };
 }
 
 export function aQuotesResponse(overrides: Partial<StockQuotes> = {}): StockQuotes {

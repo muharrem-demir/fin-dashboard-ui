@@ -262,6 +262,7 @@ export function PortfolioDetailPage(): React.JSX.Element {
                     holdings={visibleHoldings}
                     onRemove={setPendingRemoval}
                     removingTicker={removeStock.isPending ? removeStock.variables : null}
+                    historyPending={live.quotesLoading}
                   />
                 )}
               </>

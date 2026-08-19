@@ -6,20 +6,30 @@ import { queryKeys } from '../../../shared/api/query-keys';
 import { listQuotes } from './quote-api';
 import type { StockQuotes } from './quote-schemas';
 
+export interface UseQuotesBatchOptions {
+  /** Ask for each ticker's recent daily closes alongside its price. */
+  readonly includeHistory?: boolean;
+}
+
 /**
- * The opening batch of prices for a portfolio's holdings.
+ * The opening batch of prices for a portfolio's holdings, and optionally their price history.
  *
  * Fires as soon as the portfolio's stock list arrives and only when that list is non-empty — the
  * `enabled` flag is doing the work of "if there are any stocks in the response, immediately fetch
  * quotes", and it also keeps the app from asking the API for the quotes of nothing.
  *
  * After this one call the WebSocket takes over, so there is no refetch interval: polling would
- * duplicate the feed and double the load on the upstream provider.
+ * duplicate the feed and double the load on the upstream provider. That is also what makes this the
+ * right home for history — the feed carries none, so whatever lands here is fetched once when the
+ * page opens and then simply stays put in the cache while prices move over the top of it.
  */
-export function useQuotesBatch(tickers: readonly string[]): UseQueryResult<StockQuotes> {
+export function useQuotesBatch(
+  tickers: readonly string[],
+  { includeHistory = false }: UseQuotesBatchOptions = {},
+): UseQueryResult<StockQuotes> {
   return useQuery({
-    queryKey: queryKeys.quotes.batch(tickers),
-    queryFn: ({ signal }) => listQuotes(tickers, signal),
+    queryKey: queryKeys.quotes.batch(tickers, includeHistory),
+    queryFn: ({ signal }) => listQuotes(tickers, { includeHistory, signal }),
     enabled: tickers.length > 0,
     // Prices go stale by nature, but the stream is the thing that refreshes them; re-running this on
     // every window focus would fight the feed rather than help it.

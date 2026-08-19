@@ -1,6 +1,8 @@
-import type { StockQuote, StockQuotes } from '../../quotes/api/quote-schemas';
+import type { PriceHistory, StockQuote, StockQuotes } from '../../quotes/api/quote-schemas';
 import type { LiveQuote, QuoteTickMessage } from '../../quotes/ws/stream-messages';
 import type { Stock } from '../../portfolios/api/portfolio-schemas';
+
+import { indexHistories } from './price-history';
 
 /**
  * The rules for turning a list of holdings plus a stream of quotes into rows on screen.
@@ -15,6 +17,10 @@ import type { Stock } from '../../portfolios/api/portfolio-schemas';
  *   - the **batch** layer is React Query's cached response to `GET /stocks/quotes`, owned by the query
  *     cache and never copied into component state;
  *   - the **live** layer holds what the WebSocket has pushed since, and is the only piece of local state.
+ *
+ * Price *history* is a third thing and deliberately not a layer: it arrives once with the batch, the feed
+ * never carries it, and nothing merges over it. It is attached to a row here only so the table reads one
+ * object per row, and it is the batch's copy — never a duplicate held anywhere else.
  *
  * Keeping them separate is what lets the merge be a pure render-time derivation. Copying the batch into
  * local state would mean the same prices lived in two places, and every bug in that class of design is the
@@ -80,6 +86,15 @@ export interface Holding {
   readonly quoteStatus: QuoteStatus;
   readonly move: PriceMove;
   readonly updatedAt?: number;
+  /**
+   * Recent daily closes, when the batch was asked for them and the provider had any.
+   *
+   * Static for the life of the page: this is the batch's own object, passed through by reference rather
+   * than copied, so a tick that re-runs the merge hands every row the identical history it had before.
+   * Nothing merges over it and the feed never carries it — it changes only when the batch is fetched
+   * again, which is when the ticker list changes.
+   */
+  readonly history?: PriceHistory;
 }
 
 /** The API normalises symbols to upper case; the client matches that so lookups never miss. */
@@ -129,6 +144,7 @@ export interface BuildHoldingsInput {
  */
 export function buildHoldings({ stocks, batch, live = emptyLiveQuoteState }: BuildHoldingsInput): readonly Holding[] {
   const batchByTicker = indexBatch(batch);
+  const historyByTicker = indexHistories(batch);
   const batchUnresolved = new Set((batch?.unresolved ?? []).map(normalizeTicker));
   const liveUnresolved = new Set(live.unresolved.map(normalizeTicker));
 
@@ -162,6 +178,7 @@ export function buildHoldings({ stocks, batch, live = emptyLiveQuoteState }: Bui
       quoteStatus,
       move,
       updatedAt: liveQuote?.receivedAt,
+      history: historyByTicker[ticker],
     };
   });
 }

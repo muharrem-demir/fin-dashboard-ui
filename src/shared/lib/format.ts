@@ -56,6 +56,57 @@ export function formatPercentChange(value: number | null | undefined): string {
   return isFiniteNumber(value) ? `${percent.format(value)}%` : NOT_AVAILABLE;
 }
 
+/**
+ * Calendar dates from the API — `LocalDate`, so no time and no zone.
+ *
+ * Pinned to UTC on purpose. `new Date('2026-08-14')` is midnight UTC, and formatting that in a
+ * timezone west of Greenwich renders "Aug 13": a chart of daily closes would be labelled a day out
+ * for most of the Americas. Fixing the formatter's zone to the one the value was written in keeps
+ * the label saying what the backend said.
+ */
+const shortDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+const fullDate = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function parseIsoDate(value: string): Date | undefined {
+  const match = ISO_DATE.exec(value);
+
+  if (match === null) {
+    return undefined;
+  }
+
+  const [, year, month, day] = match;
+
+  if (year === undefined || month === undefined || day === undefined) {
+    return undefined;
+  }
+
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/** `2026-08-14` as `Aug 14`. For axis labels, where the year is the same on every tick. */
+export function formatShortDate(value: string): string {
+  const date = parseIsoDate(value);
+
+  return date === undefined ? NOT_AVAILABLE : shortDate.format(date);
+}
+
+/** `2026-08-14` as `Aug 14, 2026`. For a single date read on its own, where the year matters. */
+export function formatFullDate(value: string): string {
+  const date = parseIsoDate(value);
+
+  return date === undefined ? NOT_AVAILABLE : fullDate.format(date);
+}
+
 export type ChangeDirection = 'up' | 'down' | 'flat' | 'unknown';
 
 /**
