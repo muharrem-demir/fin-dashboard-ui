@@ -527,12 +527,12 @@ describe('PortfolioDetailPage', () => {
       });
     });
 
-    it('leaves the chart alone while the price beside it moves', async () => {
+    it('leaves the history alone while the price beside it moves', async () => {
+      const user = userEvent.setup();
       renderPage();
 
       const socket = await openSocket();
-      const chart = await screen.findByRole('button', { name: 'Show AAPL price history' });
-      const drawnBefore = chart.innerHTML;
+      await screen.findByRole('button', { name: 'Show AAPL price history' });
 
       await act(async () => {
         socket.emit({
@@ -546,7 +546,79 @@ describe('PortfolioDetailPage', () => {
       });
 
       expect(await screen.findByText('$400.00')).toBeInTheDocument();
-      expect(chart.innerHTML).toBe(drawnBefore);
+
+      await user.click(screen.getByRole('button', { name: 'Show AAPL price history' }));
+
+      // The closes are still the ones the batch delivered; the live price has not leaked into them.
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('cell', { name: '$150.25' })).toBeInTheDocument();
+      expect(within(dialog).queryByRole('cell', { name: '$400.00' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('opening the history from a row', () => {
+    beforeEach(() => {
+      mockedPortfolios.getPortfolio.mockResolvedValue(
+        aPortfolio({
+          id: 'p1',
+          stocks: [aStock({ ticker: 'AAPL', shares: 15 }), aStock({ ticker: 'MSFT', shares: 20 })],
+        }),
+      );
+      mockedQuotes.listQuotes.mockResolvedValue(
+        aQuotesResponse({
+          quotes: [aQuote({ ticker: 'AAPL', price: 150.25 }), aQuote({ ticker: 'MSFT', price: 198 })],
+          history: [aPriceHistory({ ticker: 'AAPL', closes: [140, 143, 141, 147, 150.25] })],
+        }),
+      );
+    });
+
+    /** The row for a ticker, once its price has landed — the rows render before the batch answers. */
+    async function rowFor(ticker: string, price: string): Promise<HTMLElement> {
+      await screen.findByText(price);
+
+      return screen.getByRole('row', { name: new RegExp(ticker) });
+    }
+
+    it('opens that holding history when any cell in the row is clicked', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      // The total value cell — as far from the chart as a click in the row can land.
+      await user.click(within(await rowFor('AAPL', '$150.25')).getByText('$2,253.75'));
+
+      expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'AAPL' })).toBeInTheDocument();
+    });
+
+    it('opens the history of the row that was clicked, not of another one', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(within(await rowFor('MSFT', '$198.00')).getByText('$198.00'));
+
+      // MSFT has no closes, so its row opens nothing at all rather than someone else's chart.
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('removes the stock without opening the history when the remove button is clicked', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(within(await rowFor('AAPL', '$150.25')).getByRole('button', { name: 'Remove AAPL' }));
+
+      // The removal confirmation, and only that: the click must not also open the chart behind it.
+      expect(await screen.findByRole('dialog', { name: 'Remove AAPL?' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'AAPL', level: 2 })).not.toBeInTheDocument();
+    });
+
+    it('keeps a keyboard path to the history through the ticker', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      const ticker = await screen.findByRole('button', { name: 'Show AAPL price history' });
+      ticker.focus();
+      await user.keyboard('{Enter}');
+
+      expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'AAPL' })).toBeInTheDocument();
     });
   });
 

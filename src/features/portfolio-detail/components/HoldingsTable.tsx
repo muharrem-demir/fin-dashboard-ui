@@ -103,39 +103,70 @@ const HoldingRow = memo(function HoldingRow({
       formatCurrency(holding.price)
     );
 
+  /**
+   * The history this row can show, or undefined when there is nothing to open.
+   *
+   * Narrowed once here rather than tested at each use, because three separate things hang off it: what
+   * the cell draws, whether the row is clickable, and whether the ticker is a control.
+   */
+  const history = isChartable(holding.history) ? holding.history : undefined;
+
+  const showHistory = (): void => {
+    if (history !== undefined) {
+      onShowHistory(holding.ticker);
+    }
+  };
+
   /*
-   * The chart is a button because it does something — it opens the detailed view — and a click target
-   * only a mouse can reach would put the whole history behind a pointer.
+   * Presentational now that the row itself is the trigger — a button inside a clickable row would be a
+   * second control for the same action in the same place.
    *
    * Every branch is exactly `h-5`, the line height of the text in the neighbouring cells, so the history
    * column never changes the height of a row whether it is drawing, waiting or empty.
    */
-  const historyCell = isChartable(holding.history) ? (
-    <button
-      type="button"
-      aria-label={`Show ${holding.ticker} price history`}
-      onClick={() => {
-        onShowHistory(holding.ticker);
-      }}
-      className={cn(
-        // Tailwind v4's preflight gives every button `cursor: default`, so a clickable graphic has to
-        // ask for the pointer itself.
-        'flex h-5 w-16 cursor-pointer items-center justify-end rounded-sm transition-opacity',
-        'hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
-      )}
-    >
-      <PriceSparkline points={holding.history.points} />
-    </button>
-  ) : historyPending ? (
-    <span aria-label="Awaiting price history" className="block h-5 w-16 animate-pulse rounded bg-surface-sunken" />
-  ) : (
-    <span className="numeric flex h-5 items-center text-content-muted">{NOT_AVAILABLE}</span>
-  );
+  const historyCell =
+    history !== undefined ? (
+      <PriceSparkline points={history.points} />
+    ) : historyPending ? (
+      <span aria-label="Awaiting price history" className="block h-5 w-16 animate-pulse rounded bg-surface-sunken" />
+    ) : (
+      <span className="numeric flex h-5 items-center text-content-muted">{NOT_AVAILABLE}</span>
+    );
 
   return (
-    <tr ref={row} className="transition-colors hover:bg-surface-hover">
+    /*
+     * Clicking anywhere in the row opens its history — anywhere, that is, except the remove button,
+     * which stops the click before it gets here.
+     *
+     * The row is a pointer affordance and nothing more: the keyboard and screen-reader path is the
+     * ticker button inside it, which carries the accessible name and answers Enter and Space for free.
+     * Putting `role="button"` and a tabindex on the `<tr>` would be the wrong fix — a row announced as
+     * a button loses the cell semantics that make this a table at all.
+     */
+    <tr
+      ref={row}
+      onClick={history === undefined ? undefined : showHistory}
+      className={cn('transition-colors hover:bg-surface-hover', history !== undefined && 'cursor-pointer')}
+    >
       <th scope="row" className="px-4 py-3.5 text-left align-middle sm:px-5">
-        <span className="font-semibold tracking-tight text-content-primary">{holding.ticker}</span>
+        {history === undefined ? (
+          <span className="font-semibold tracking-tight text-content-primary">{holding.ticker}</span>
+        ) : (
+          // Styled to be indistinguishable from the plain ticker: this exists to be focusable, not to
+          // look like a button. Its click bubbles to the row handler as well, which costs nothing —
+          // both set the same ticker, so the second call is a no-op.
+          <button
+            type="button"
+            aria-label={`Show ${holding.ticker} price history`}
+            onClick={showHistory}
+            className={cn(
+              'cursor-pointer rounded-sm font-semibold tracking-tight text-content-primary',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
+            )}
+          >
+            {holding.ticker}
+          </button>
+        )}
       </th>
 
       <td className="numeric px-4 py-3.5 text-right align-middle text-content-secondary sm:px-5">
@@ -165,7 +196,10 @@ const HoldingRow = memo(function HoldingRow({
           icon={<Trash2 className="size-4" />}
           variant="danger-ghost"
           loading={removing}
-          onClick={() => {
+          onClick={(event) => {
+            // The one part of the row that is not a way into the history: removing a position and
+            // looking at its chart are different intentions, and the click must not do both.
+            event.stopPropagation();
             onRemove(holding.ticker);
           }}
         />
@@ -311,7 +345,7 @@ export function HoldingsTable({
         <caption className="sr-only">
           Holdings in this portfolio, with live prices, percent change and total value. Ticker, shares, price, change
           and total value each have a heading that sorts by that column; history shows recent closing prices and is not
-          sortable.
+          sortable. Activating a holding&apos;s ticker opens its full price history.
         </caption>
 
         <thead>
