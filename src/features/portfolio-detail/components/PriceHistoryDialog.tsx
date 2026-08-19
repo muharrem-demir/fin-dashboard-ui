@@ -1,9 +1,9 @@
 import { formatCurrency, formatFullDate } from '../../../shared/lib/format';
+import { ChangeBadge } from '../../../shared/ui/ChangeBadge';
 import { Modal } from '../../../shared/ui/Modal';
 import type { PriceHistory } from '../../quotes/api/quote-schemas';
 import { summarizeHistory } from '../lib/price-history';
 
-import { ChangeBadge } from './ChangeBadge';
 import { PriceHistoryChart } from './PriceHistoryChart';
 
 export interface PriceHistoryDialogProps {

@@ -1,6 +1,7 @@
-import { cn } from '../../../shared/lib/cn';
-import { changeDirection, formatPercentChange } from '../../../shared/lib/format';
-import { Minus, TrendingDown, TrendingUp } from '../../../shared/ui/icons';
+import { cn } from '../lib/cn';
+import { changeDirection, formatPercentChange } from '../lib/format';
+
+import { Minus, TrendingDown, TrendingUp } from './icons';
 
 export interface ChangeBadgeProps {
   readonly percentChange: number | undefined;
@@ -14,6 +15,10 @@ export interface ChangeBadgeProps {
  * The icon is not decoration: colour alone would leave the sign of a move inaccessible to a
  * red/green colour-blind reader, and the arrow plus the explicit `+`/`-` carry the same information
  * two more ways.
+ *
+ * Shared rather than feature-owned because two features now render a percent change — the holdings
+ * table and the watchlist — and the component knows nothing about either: it takes a number and
+ * decides a colour, which is exactly the kind of thing `shared/ui` is for.
  */
 export function ChangeBadge({ percentChange, size = 'md', className }: ChangeBadgeProps): React.JSX.Element {
   const direction = changeDirection(percentChange);

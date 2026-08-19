@@ -1,4 +1,5 @@
 import type { Portfolio, PortfolioSummary, Stock } from '../features/portfolios/api/portfolio-schemas';
+import type { WatchlistEntry } from '../features/watchlist/api/watchlist-schemas';
 import type { PriceHistory, PricePoint, StockQuote, StockQuotes } from '../features/quotes/api/quote-schemas';
 import type { QuoteTickMessage } from '../features/quotes/ws/stream-messages';
 
@@ -35,6 +36,10 @@ export function aPortfolio(overrides: Partial<Portfolio> = {}): Portfolio {
     totalShares: stocks.reduce((total, stock) => total + stock.shares, 0),
     ...overrides,
   };
+}
+
+export function aWatchlistEntry(overrides: Partial<WatchlistEntry> = {}): WatchlistEntry {
+  return { id: '9c2e5d7a-0000-4000-8000-00000000000a', ticker: 'AAPL', ...overrides };
 }
 
 export function aQuote(overrides: Partial<StockQuote> = {}): StockQuote {

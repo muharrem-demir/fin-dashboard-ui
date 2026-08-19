@@ -2,13 +2,13 @@ import { memo, useEffect, useMemo, useRef, useState, type RefObject } from 'reac
 
 import { cn } from '../../../shared/lib/cn';
 import { NOT_AVAILABLE, formatCurrency, formatShares } from '../../../shared/lib/format';
+import { ChangeBadge } from '../../../shared/ui/ChangeBadge';
 import { ChevronDown, ChevronsUpDown, ChevronUp, Trash2 } from '../../../shared/ui/icons';
 import { IconButton } from '../../../shared/ui/IconButton';
 import type { Holding } from '../lib/holdings';
 import { isChartable } from '../lib/price-history';
 import { DEFAULT_SORT, nextSort, sortHoldings, type HoldingSort, type HoldingSortKey } from '../lib/sort-holdings';
 
-import { ChangeBadge } from './ChangeBadge';
 import { PriceHistoryDialog } from './PriceHistoryDialog';
 import { PriceSparkline } from './PriceSparkline';
 

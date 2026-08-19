@@ -68,3 +68,31 @@ export function HoldingsTableSkeleton({ rows = 5 }: { readonly rows?: number }):
     </div>
   );
 }
+
+/**
+ * Placeholder cards for the watchlist strip.
+ *
+ * Laid out in the same single scrolling row as the real thing and clipped rather than scrollable, so
+ * the loading state cannot be dragged sideways to reveal that there is nothing behind it.
+ */
+export function WatchlistSkeleton({ count = 6 }: { readonly count?: number }): React.JSX.Element {
+  return (
+    <div role="status" aria-label="Loading watchlist" className="flex gap-3 overflow-hidden p-3">
+      {Array.from({ length: count }, (_, index) => (
+        <div
+          key={index}
+          className="flex w-40 shrink-0 flex-col justify-between gap-6 rounded-card border border-border-subtle bg-surface-raised p-3"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <Skeleton className="h-6 w-16" />
+            <Skeleton className="size-5 rounded-md" />
+          </div>
+          <div className="flex items-end justify-between gap-2">
+            <Skeleton className="h-4 w-14" />
+            <Skeleton className="h-5 w-16 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

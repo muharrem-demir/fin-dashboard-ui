@@ -8,16 +8,20 @@ import { ErrorState } from '../../../shared/ui/ErrorState';
 import { Briefcase, Plus, RefreshCw } from '../../../shared/ui/icons';
 import { PortfolioListSkeleton } from '../../../shared/ui/Skeleton';
 import { formatCount } from '../../../shared/lib/format';
+import { WatchlistSection } from '../../watchlist/components/WatchlistSection';
 import { useCreatePortfolio, useDeletePortfolio, usePortfolios } from '../api/portfolio-queries';
 import type { PortfolioSummary } from '../api/portfolio-schemas';
 import { CreatePortfolioDialog } from '../components/CreatePortfolioDialog';
 import { PortfolioCard } from '../components/PortfolioCard';
 
 /**
- * The landing page: every portfolio, with create and delete.
+ * The landing page: every portfolio, with create and delete, and the watchlist beneath them.
  *
  * Creating navigates straight to the new portfolio's detail page, which is both the requirement and
  * the right default — a portfolio's whole purpose is the holdings you are about to add to it.
+ *
+ * The watchlist is one element here and nothing more. It fetches its own entries and owns its own live
+ * connection, so this page neither knows nor cares that a socket opens while it is on screen.
  */
 export function PortfoliosPage(): React.JSX.Element {
   const navigate = useNavigate();
@@ -151,6 +155,10 @@ export function PortfoliosPage(): React.JSX.Element {
           onSubmit={create}
         />
       )}
+
+      <div className="border-t border-border-subtle pt-6">
+        <WatchlistSection />
+      </div>
 
       <ConfirmDialog
         open={pendingDeletion !== null}

@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import * as portfolioApi from '../api/portfolio-api';
+import * as watchlistApi from '../../watchlist/api/watchlist-api';
 import { aPortfolio, aPortfolioSummary } from '../../../test/factories';
 import { renderWithProviders } from '../../../test/test-utils';
 
@@ -15,8 +16,13 @@ import { PortfoliosPage } from './PortfoliosPage';
  * which `http-client.test.ts` already covers.
  */
 jest.mock('../api/portfolio-api');
+// The page also mounts the watchlist, which fetches and opens a socket of its own. Its behaviour is
+// covered by `WatchlistSection.test.tsx`; here it is stubbed to an empty list so these tests are about
+// the portfolio list and nothing else.
+jest.mock('../../watchlist/api/watchlist-api');
 
 const mockedApi = jest.mocked(portfolioApi);
+const mockedWatchlist = jest.mocked(watchlistApi);
 
 // react-router's useNavigate is replaced so "creating navigates to the new portfolio" can be asserted
 // without mounting a second route.
@@ -30,6 +36,7 @@ jest.mock('react-router-dom', () => ({
 describe('PortfoliosPage', () => {
   beforeEach(() => {
     navigate.mockClear();
+    mockedWatchlist.listWatchlist.mockResolvedValue([]);
   });
 
   it('shows a skeleton while the list is loading', () => {

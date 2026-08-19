@@ -1,7 +1,6 @@
 import { cn } from '../../../shared/lib/cn';
 import { formatCount, formatCurrency, formatShares } from '../../../shared/lib/format';
-
-import { ChangeBadge } from './ChangeBadge';
+import { ChangeBadge } from '../../../shared/ui/ChangeBadge';
 
 export interface PortfolioStatsProps {
   readonly stockCount: number;

@@ -14,6 +14,14 @@ export const queryKeys = {
     list: () => ['portfolios', 'list'] as const,
     detail: (portfolioId: string) => ['portfolios', 'detail', portfolioId] as const,
   },
+  watchlist: {
+    all: ['watchlist'] as const,
+    /**
+     * One list and no detail entry: the API has no `GET /watchlist/{id}`, and the section always
+     * renders the whole list, so a per-entry key would only be a key nothing ever reads.
+     */
+    list: () => ['watchlist', 'list'] as const,
+  },
   quotes: {
     all: ['quotes'] as const,
     /**
