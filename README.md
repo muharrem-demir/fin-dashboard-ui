@@ -7,6 +7,16 @@ remove holdings, and watch prices move as they are pushed over a WebSocket.
 
 No authentication — the API is open by design, so the UI has no login.
 
+## AI Assistance
+
+Claude Code ise used for developing this project. 
+
+In the beginning of the development process CLAUDE.md file and .claude folder contents (skills, agents) are created. This provided consistency during adding new features to the project.
+
+As a first step, project's techical requirements are specified. Necessary features are developed by the AI agents, after carefully describing the requirements.
+
+The changes and fixes related to the existing features are also developed by AI agents, again by clearly promtping the requirements.
+
 ## Quick start
 
 **Before running the UI make sure to run backend API.**
